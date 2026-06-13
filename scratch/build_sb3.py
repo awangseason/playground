@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import tempfile
 import zipfile
@@ -13,6 +14,10 @@ from pathlib import Path
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def md5_hex(content: str) -> str:
+    return hashlib.md5(content.encode("utf-8")).hexdigest()
 
 
 def svg_rect(width: int, height: int, fill: str, label: str = "") -> str:
@@ -39,7 +44,7 @@ def svg_circle(size: int, fill: str, stroke: str = "#ffffff") -> str:
     )
 
 
-def write_assets(out_dir: Path) -> None:
+def write_assets(out_dir: Path) -> dict:
     assets = {
         "bg_space.svg": svg_rect(480, 360, "#0b1020", "Solar System Guardian"),
         "bg_full_solar_system.svg": svg_rect(480, 360, "#101a38", "Full Solar System"),
@@ -57,8 +62,25 @@ def write_assets(out_dir: Path) -> None:
         "planet_neptune.svg": svg_circle(90, "#4062d8"),
         "intro_board.svg": svg_rect(280, 90, "#1f2a44", "Planet Briefing"),
     }
+    asset_map = {}
     for name, content in assets.items():
-        write_text(out_dir / name, content)
+        digest = md5_hex(content)
+        new_name = f"{digest}.svg"
+        write_text(out_dir / new_name, content)
+        asset_map[name] = {
+            "assetId": digest,
+            "md5ext": new_name,
+        }
+    return asset_map
+
+
+def normalize_project_assets(project: dict, asset_map: dict) -> None:
+    for target in project.get("targets", []):
+        for costume in target.get("costumes", []):
+            old_md5ext = costume.get("md5ext", "")
+            if old_md5ext in asset_map:
+                costume["assetId"] = asset_map[old_md5ext]["assetId"]
+                costume["md5ext"] = asset_map[old_md5ext]["md5ext"]
 
 
 def make_template_project() -> dict:
@@ -300,513 +322,240 @@ def make_template_project() -> dict:
 def make_playable_project() -> dict:
     project = make_template_project()
 
+    # ── STAGE ────────────────────────────────────────────────────────────────
+    # Flag → set bg/score/level=1 → repeat until Level > 8 → level body → next level
     stage = project["targets"][0]
-    stage_blocks = {}
+    sb = {}
 
-    stage_blocks["s_top"] = {
-        "opcode": "event_whenflagclicked",
-        "next": "s_bg",
-        "parent": None,
-        "inputs": {},
-        "fields": {},
-        "shadow": False,
-        "topLevel": True,
-        "x": 20,
-        "y": 20,
-    }
-    stage_blocks["s_bg"] = {
-        "opcode": "looks_switchbackdropto",
-        "next": "s_score",
-        "parent": "s_top",
-        "inputs": {"BACKDROP": [1, [10, "Space"]]},
-        "fields": {},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_score"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_level",
-        "parent": "s_bg",
-        "inputs": {"VALUE": [1, [4, "0"]]},
-        "fields": {"VARIABLE": ["Score", "var_score"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_level"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_loop",
-        "parent": "s_score",
-        "inputs": {"VALUE": [1, [4, "1"]]},
-        "fields": {"VARIABLE": ["Level", "var_level"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_loop"] = {
-        "opcode": "control_repeat_until",
-        "next": "s_full",
-        "parent": "s_level",
-        "inputs": {
-            "CONDITION": [1, [4, "1"]],
-            "SUBSTACK": [2, "s_reset_blocked"],
-        },
-        "fields": {},
-        "shadow": False,
-        "topLevel": False,
-    }
+    sb["s_top"] = {"opcode": "event_whenflagclicked", "next": "s_bg", "parent": None,
+                   "inputs": {}, "fields": {}, "shadow": False, "topLevel": True, "x": 20, "y": 20}
+    sb["s_bg"] = {"opcode": "looks_switchbackdropto", "next": "s_score", "parent": "s_top",
+                  "inputs": {"BACKDROP": [1, [10, "Space"]]}, "fields": {}, "shadow": False, "topLevel": False}
+    sb["s_score"] = {"opcode": "data_setvariableto", "next": "s_level", "parent": "s_bg",
+                     "inputs": {"VALUE": [1, [4, "0"]]}, "fields": {"VARIABLE": ["Score", "var_score"]},
+                     "shadow": False, "topLevel": False}
+    sb["s_level"] = {"opcode": "data_setvariableto", "next": "s_loop", "parent": "s_score",
+                     "inputs": {"VALUE": [1, [4, "1"]]}, "fields": {"VARIABLE": ["Level", "var_level"]},
+                     "shadow": False, "topLevel": False}
+    # repeat until (Level > 8)
+    sb["s_loop"] = {"opcode": "control_repeat_until", "next": "s_full", "parent": "s_level",
+                    "inputs": {"CONDITION": [2, "s_cond_gt"], "SUBSTACK": [2, "s_reset_blocked"]},
+                    "fields": {}, "shadow": False, "topLevel": False}
+    sb["s_cond_gt"] = {"opcode": "operator_gt", "next": None, "parent": "s_loop",
+                       "inputs": {"OPERAND1": [3, "s_cond_var", [4, ""]], "OPERAND2": [1, [4, "8"]]},
+                       "fields": {}, "shadow": False, "topLevel": False}
+    sb["s_cond_var"] = {"opcode": "data_variable", "next": None, "parent": "s_cond_gt",
+                        "inputs": {}, "fields": {"VARIABLE": ["Level", "var_level"]},
+                        "shadow": False, "topLevel": False}
+    # loop body
+    sb["s_reset_blocked"] = {"opcode": "data_setvariableto", "next": "s_reset_hp", "parent": "s_loop",
+                              "inputs": {"VALUE": [1, [4, "0"]]}, "fields": {"VARIABLE": ["Blocked", "var_blocked"]},
+                              "shadow": False, "topLevel": False}
+    sb["s_reset_hp"] = {"opcode": "data_setvariableto", "next": "s_target", "parent": "s_reset_blocked",
+                        "inputs": {"VALUE": [1, [4, "3"]]}, "fields": {"VARIABLE": ["PlanetHP", "var_hp"]},
+                        "shadow": False, "topLevel": False}
+    sb["s_target"] = {"opcode": "data_setvariableto", "next": "s_spawn", "parent": "s_reset_hp",
+                      "inputs": {"VALUE": [1, [4, "6"]]}, "fields": {"VARIABLE": ["Target", "var_target"]},
+                      "shadow": False, "topLevel": False}
+    sb["s_spawn"] = {"opcode": "data_setvariableto", "next": "s_speed", "parent": "s_target",
+                     "inputs": {"VALUE": [1, [4, "0.6"]]}, "fields": {"VARIABLE": ["SpawnGap", "var_spawn_gap"]},
+                     "shadow": False, "topLevel": False}
+    sb["s_speed"] = {"opcode": "data_setvariableto", "next": "s_setplanet", "parent": "s_spawn",
+                     "inputs": {"VALUE": [1, [4, "5"]]}, "fields": {"VARIABLE": ["TrashSpeed", "var_trash_speed"]},
+                     "shadow": False, "topLevel": False}
+    sb["s_setplanet"] = {"opcode": "event_broadcast", "next": "s_intro", "parent": "s_speed",
+                         "inputs": {"BROADCAST_INPUT": [1, "s_setplanet_menu"]},
+                         "fields": {}, "shadow": False, "topLevel": False}
+    sb["s_setplanet_menu"] = {"opcode": "event_broadcast_menu", "next": None, "parent": "s_setplanet",
+                               "inputs": {}, "fields": {"BROADCAST_OPTION": ["SetPlanet", "bc_set_planet"]},
+                               "shadow": True, "topLevel": False}
+    sb["s_intro"] = {"opcode": "event_broadcast", "next": "s_game_on", "parent": "s_setplanet",
+                     "inputs": {"BROADCAST_INPUT": [1, "s_intro_menu"]},
+                     "fields": {}, "shadow": False, "topLevel": False}
+    sb["s_intro_menu"] = {"opcode": "event_broadcast_menu", "next": None, "parent": "s_intro",
+                           "inputs": {}, "fields": {"BROADCAST_OPTION": ["ShowIntro", "bc_show_intro"]},
+                           "shadow": True, "topLevel": False}
+    sb["s_game_on"] = {"opcode": "data_setvariableto", "next": "s_wait", "parent": "s_intro",
+                       "inputs": {"VALUE": [1, [4, "1"]]}, "fields": {"VARIABLE": ["GameOn", "var_game_on"]},
+                       "shadow": False, "topLevel": False}
+    sb["s_wait"] = {"opcode": "control_wait", "next": "s_game_off", "parent": "s_game_on",
+                    "inputs": {"DURATION": [1, [4, "8"]]}, "fields": {}, "shadow": False, "topLevel": False}
+    sb["s_game_off"] = {"opcode": "data_setvariableto", "next": "s_levelup", "parent": "s_wait",
+                        "inputs": {"VALUE": [1, [4, "0"]]}, "fields": {"VARIABLE": ["GameOn", "var_game_on"]},
+                        "shadow": False, "topLevel": False}
+    sb["s_levelup"] = {"opcode": "data_changevariableby", "next": None, "parent": "s_game_off",
+                       "inputs": {"VALUE": [1, [4, "1"]]}, "fields": {"VARIABLE": ["Level", "var_level"]},
+                       "shadow": False, "topLevel": False}
+    # after loop → full solar system → AllClear
+    sb["s_full"] = {"opcode": "looks_switchbackdropto", "next": "s_all", "parent": "s_loop",
+                    "inputs": {"BACKDROP": [1, [10, "FullSolarSystem"]]}, "fields": {}, "shadow": False, "topLevel": False}
+    sb["s_all"] = {"opcode": "event_broadcast", "next": None, "parent": "s_full",
+                   "inputs": {"BROADCAST_INPUT": [1, "s_all_menu"]}, "fields": {}, "shadow": False, "topLevel": False}
+    sb["s_all_menu"] = {"opcode": "event_broadcast_menu", "next": None, "parent": "s_all",
+                        "inputs": {}, "fields": {"BROADCAST_OPTION": ["AllClear", "bc_all_clear"]},
+                        "shadow": True, "topLevel": False}
+    stage["blocks"] = sb
 
-    stage_blocks["s_reset_blocked"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_reset_hp",
-        "parent": "s_loop",
-        "inputs": {"VALUE": [1, [4, "0"]]},
-        "fields": {"VARIABLE": ["Blocked", "var_blocked"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_reset_hp"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_target",
-        "parent": "s_reset_blocked",
-        "inputs": {"VALUE": [1, [4, "3"]]},
-        "fields": {"VARIABLE": ["PlanetHP", "var_hp"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_target"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_spawn",
-        "parent": "s_reset_hp",
-        "inputs": {"VALUE": [1, [4, "6"]]},
-        "fields": {"VARIABLE": ["Target", "var_target"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_spawn"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_speed",
-        "parent": "s_target",
-        "inputs": {"VALUE": [1, [4, "0.6"]]},
-        "fields": {"VARIABLE": ["SpawnGap", "var_spawn_gap"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_speed"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_setplanet",
-        "parent": "s_spawn",
-        "inputs": {"VALUE": [1, [4, "5"]]},
-        "fields": {"VARIABLE": ["TrashSpeed", "var_trash_speed"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_setplanet"] = {
-        "opcode": "event_broadcast",
-        "next": "s_intro",
-        "parent": "s_speed",
-        "inputs": {
-            "BROADCAST_INPUT": [1, "s_setplanet_menu"],
-        },
-        "fields": {},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_setplanet_menu"] = {
-        "opcode": "event_broadcast_menu",
-        "next": None,
-        "parent": "s_setplanet",
-        "inputs": {},
-        "fields": {"BROADCAST_OPTION": ["SetPlanet", "bc_set_planet"]},
-        "shadow": True,
-        "topLevel": False,
-    }
-    stage_blocks["s_intro"] = {
-        "opcode": "event_broadcast",
-        "next": "s_game_on",
-        "parent": "s_setplanet",
-        "inputs": {"BROADCAST_INPUT": [1, "s_intro_menu"]},
-        "fields": {},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_intro_menu"] = {
-        "opcode": "event_broadcast_menu",
-        "next": None,
-        "parent": "s_intro",
-        "inputs": {},
-        "fields": {"BROADCAST_OPTION": ["ShowIntro", "bc_show_intro"]},
-        "shadow": True,
-        "topLevel": False,
-    }
-    stage_blocks["s_game_on"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_wait",
-        "parent": "s_intro",
-        "inputs": {"VALUE": [1, [4, "1"]]},
-        "fields": {"VARIABLE": ["GameOn", "var_game_on"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_wait"] = {
-        "opcode": "control_wait",
-        "next": "s_game_off",
-        "parent": "s_game_on",
-        "inputs": {"DURATION": [1, [4, "8"]]},
-        "fields": {},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_game_off"] = {
-        "opcode": "data_setvariableto",
-        "next": "s_levelup",
-        "parent": "s_wait",
-        "inputs": {"VALUE": [1, [4, "0"]]},
-        "fields": {"VARIABLE": ["GameOn", "var_game_on"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_levelup"] = {
-        "opcode": "data_changevariableby",
-        "next": None,
-        "parent": "s_game_off",
-        "inputs": {"VALUE": [1, [4, "1"]]},
-        "fields": {"VARIABLE": ["Level", "var_level"]},
-        "shadow": False,
-        "topLevel": False,
-    }
-
-    stage_blocks["s_full"] = {
-        "opcode": "looks_switchbackdropto",
-        "next": "s_all",
-        "parent": "s_loop",
-        "inputs": {"BACKDROP": [1, [10, "FullSolarSystem"]]},
-        "fields": {},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_all"] = {
-        "opcode": "event_broadcast",
-        "next": None,
-        "parent": "s_full",
-        "inputs": {"BROADCAST_INPUT": [1, "s_all_menu"]},
-        "fields": {},
-        "shadow": False,
-        "topLevel": False,
-    }
-    stage_blocks["s_all_menu"] = {
-        "opcode": "event_broadcast_menu",
-        "next": None,
-        "parent": "s_all",
-        "inputs": {},
-        "fields": {"BROADCAST_OPTION": ["AllClear", "bc_all_clear"]},
-        "shadow": True,
-        "topLevel": False,
-    }
-
-    stage["blocks"] = stage_blocks
-
+    # ── HERO ─────────────────────────────────────────────────────────────────
+    # Flag → show → goto(-120,0) → forever [ if ↑ pressed: y+6 | if ↓ pressed: y-6 ]
     hero = project["targets"][1]
     hero["blocks"] = {
-        "h_top": {
-            "opcode": "event_whenflagclicked",
-            "next": "h_show",
-            "parent": None,
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": True,
-            "x": 20,
-            "y": 20,
-        },
-        "h_show": {
-            "opcode": "looks_show",
-            "next": "h_goto",
-            "parent": "h_top",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "h_goto": {
-            "opcode": "motion_gotoxy",
-            "next": "h_forever",
-            "parent": "h_show",
-            "inputs": {"X": [1, [4, "-120"]], "Y": [1, [4, "0"]]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "h_forever": {
-            "opcode": "control_forever",
-            "next": None,
-            "parent": "h_goto",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
+        "h_top": {"opcode": "event_whenflagclicked", "next": "h_show", "parent": None,
+                  "inputs": {}, "fields": {}, "shadow": False, "topLevel": True, "x": 20, "y": 20},
+        "h_show": {"opcode": "looks_show", "next": "h_goto", "parent": "h_top",
+                   "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
+        "h_goto": {"opcode": "motion_gotoxy", "next": "h_forever", "parent": "h_show",
+                   "inputs": {"X": [1, [4, "-120"]], "Y": [1, [4, "0"]]},
+                   "fields": {}, "shadow": False, "topLevel": False},
+        "h_forever": {"opcode": "control_forever", "next": None, "parent": "h_goto",
+                      "inputs": {"SUBSTACK": [2, "h_if_up"]},
+                      "fields": {}, "shadow": False, "topLevel": False},
+        # if up arrow pressed → change y by 6
+        "h_if_up": {"opcode": "control_if", "next": "h_if_down", "parent": "h_forever",
+                    "inputs": {"CONDITION": [2, "h_key_up"], "SUBSTACK": [2, "h_move_up"]},
+                    "fields": {}, "shadow": False, "topLevel": False},
+        "h_key_up": {"opcode": "sensing_keypressed", "next": None, "parent": "h_if_up",
+                     "inputs": {"KEY_OPTION": [1, "h_key_up_menu"]},
+                     "fields": {}, "shadow": False, "topLevel": False},
+        "h_key_up_menu": {"opcode": "sensing_keyoptions", "next": None, "parent": "h_key_up",
+                          "inputs": {}, "fields": {"KEY_OPTION": ["up arrow", None]},
+                          "shadow": True, "topLevel": False},
+        "h_move_up": {"opcode": "motion_changeyby", "next": None, "parent": "h_if_up",
+                      "inputs": {"DY": [1, [4, "6"]]}, "fields": {}, "shadow": False, "topLevel": False},
+        # if down arrow pressed → change y by -6
+        "h_if_down": {"opcode": "control_if", "next": None, "parent": "h_if_up",
+                      "inputs": {"CONDITION": [2, "h_key_down"], "SUBSTACK": [2, "h_move_down"]},
+                      "fields": {}, "shadow": False, "topLevel": False},
+        "h_key_down": {"opcode": "sensing_keypressed", "next": None, "parent": "h_if_down",
+                       "inputs": {"KEY_OPTION": [1, "h_key_down_menu"]},
+                       "fields": {}, "shadow": False, "topLevel": False},
+        "h_key_down_menu": {"opcode": "sensing_keyoptions", "next": None, "parent": "h_key_down",
+                            "inputs": {}, "fields": {"KEY_OPTION": ["down arrow", None]},
+                            "shadow": True, "topLevel": False},
+        "h_move_down": {"opcode": "motion_changeyby", "next": None, "parent": "h_if_down",
+                        "inputs": {"DY": [1, [4, "-6"]]}, "fields": {}, "shadow": False, "topLevel": False},
     }
 
+    # ── TRASH ────────────────────────────────────────────────────────────────
+    # Flag → hide → forever [ if GameOn=1: wait(SpawnGap) → clone ]
+    # Clone start → random costume(1-3) → goto(240, random Y -140..140)
+    #            → repeat 70 [ move x-5 ] → delete clone
     trash = project["targets"][2]
     trash["blocks"] = {
-        "t_top": {
-            "opcode": "event_whenflagclicked",
-            "next": "t_hide",
-            "parent": None,
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": True,
-            "x": 20,
-            "y": 20,
-        },
-        "t_hide": {
-            "opcode": "looks_hide",
-            "next": "t_forever",
-            "parent": "t_top",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_forever": {
-            "opcode": "control_forever",
-            "next": None,
-            "parent": "t_hide",
-            "inputs": {
-                "SUBSTACK": [2, "t_if_on"],
-            },
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_if_on": {
-            "opcode": "control_if",
-            "next": None,
-            "parent": "t_forever",
-            "inputs": {
-                "CONDITION": [1, [4, "1"]],
-                "SUBSTACK": [2, "t_wait"],
-            },
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_wait": {
-            "opcode": "control_wait",
-            "next": "t_clone",
-            "parent": "t_if_on",
-            "inputs": {"DURATION": [1, [4, "0.6"]]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_clone": {
-            "opcode": "control_create_clone_of",
-            "next": None,
-            "parent": "t_wait",
-            "inputs": {"CLONE_OPTION": [1, "t_clone_menu"]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_clone_menu": {
-            "opcode": "control_create_clone_of_menu",
-            "next": None,
-            "parent": "t_clone",
-            "inputs": {},
-            "fields": {"CLONE_OPTION": ["_myself_", None]},
-            "shadow": True,
-            "topLevel": False,
-        },
-        "t_clone_start": {
-            "opcode": "control_start_as_clone",
-            "next": "t_show",
-            "parent": None,
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": True,
-            "x": 20,
-            "y": 260,
-        },
-        "t_show": {
-            "opcode": "looks_show",
-            "next": "t_goto",
-            "parent": "t_clone_start",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_goto": {
-            "opcode": "motion_gotoxy",
-            "next": "t_repeat",
-            "parent": "t_show",
-            "inputs": {"X": [1, [4, "240"]], "Y": [1, [4, "0"]]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_repeat": {
-            "opcode": "control_repeat",
-            "next": "t_del",
-            "parent": "t_goto",
-            "inputs": {"TIMES": [1, [4, "70"]], "SUBSTACK": [2, "t_move"]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_move": {
-            "opcode": "motion_changexby",
-            "next": None,
-            "parent": "t_repeat",
-            "inputs": {"DX": [1, [4, "-5"]]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "t_del": {
-            "opcode": "control_delete_this_clone",
-            "next": None,
-            "parent": "t_repeat",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
+        "t_top": {"opcode": "event_whenflagclicked", "next": "t_hide", "parent": None,
+                  "inputs": {}, "fields": {}, "shadow": False, "topLevel": True, "x": 20, "y": 20},
+        "t_hide": {"opcode": "looks_hide", "next": "t_forever", "parent": "t_top",
+                   "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
+        "t_forever": {"opcode": "control_forever", "next": None, "parent": "t_hide",
+                      "inputs": {"SUBSTACK": [2, "t_if_on"]},
+                      "fields": {}, "shadow": False, "topLevel": False},
+        # if GameOn = 1
+        "t_if_on": {"opcode": "control_if", "next": None, "parent": "t_forever",
+                    "inputs": {"CONDITION": [2, "t_game_eq"], "SUBSTACK": [2, "t_wait"]},
+                    "fields": {}, "shadow": False, "topLevel": False},
+        "t_game_eq": {"opcode": "operator_equals", "next": None, "parent": "t_if_on",
+                      "inputs": {"OPERAND1": [3, "t_game_var", [4, ""]], "OPERAND2": [1, [4, "1"]]},
+                      "fields": {}, "shadow": False, "topLevel": False},
+        "t_game_var": {"opcode": "data_variable", "next": None, "parent": "t_game_eq",
+                       "inputs": {}, "fields": {"VARIABLE": ["GameOn", "var_game_on"]},
+                       "shadow": False, "topLevel": False},
+        "t_wait": {"opcode": "control_wait", "next": "t_clone", "parent": "t_if_on",
+                   "inputs": {"DURATION": [3, "t_spawn_var", [4, "0.6"]]},
+                   "fields": {}, "shadow": False, "topLevel": False},
+        "t_spawn_var": {"opcode": "data_variable", "next": None, "parent": "t_wait",
+                        "inputs": {}, "fields": {"VARIABLE": ["SpawnGap", "var_spawn_gap"]},
+                        "shadow": False, "topLevel": False},
+        "t_clone": {"opcode": "control_create_clone_of", "next": None, "parent": "t_wait",
+                    "inputs": {"CLONE_OPTION": [1, "t_clone_menu"]},
+                    "fields": {}, "shadow": False, "topLevel": False},
+        "t_clone_menu": {"opcode": "control_create_clone_of_menu", "next": None, "parent": "t_clone",
+                         "inputs": {}, "fields": {"CLONE_OPTION": ["_myself_", None]},
+                         "shadow": True, "topLevel": False},
+        # clone start
+        "t_clone_start": {"opcode": "control_start_as_clone", "next": "t_costume", "parent": None,
+                          "inputs": {}, "fields": {}, "shadow": False, "topLevel": True, "x": 20, "y": 260},
+        # pick random costume 1–3
+        "t_costume": {"opcode": "looks_switchcostumeto", "next": "t_show", "parent": "t_clone_start",
+                      "inputs": {"COSTUME": [3, "t_costume_rand", [4, "1"]]},
+                      "fields": {}, "shadow": False, "topLevel": False},
+        "t_costume_rand": {"opcode": "operator_random", "next": None, "parent": "t_costume",
+                           "inputs": {"FROM": [1, [4, "1"]], "TO": [1, [4, "3"]]},
+                           "fields": {}, "shadow": False, "topLevel": False},
+        "t_show": {"opcode": "looks_show", "next": "t_goto", "parent": "t_costume",
+                   "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
+        # goto X=240, Y=random -140..140
+        "t_goto": {"opcode": "motion_gotoxy", "next": "t_repeat", "parent": "t_show",
+                   "inputs": {"X": [1, [4, "240"]], "Y": [3, "t_rand_y", [4, "0"]]},
+                   "fields": {}, "shadow": False, "topLevel": False},
+        "t_rand_y": {"opcode": "operator_random", "next": None, "parent": "t_goto",
+                     "inputs": {"FROM": [1, [4, "-140"]], "TO": [1, [4, "140"]]},
+                     "fields": {}, "shadow": False, "topLevel": False},
+        "t_repeat": {"opcode": "control_repeat", "next": "t_del", "parent": "t_goto",
+                     "inputs": {"TIMES": [1, [4, "70"]], "SUBSTACK": [2, "t_move"]},
+                     "fields": {}, "shadow": False, "topLevel": False},
+        "t_move": {"opcode": "motion_changexby", "next": None, "parent": "t_repeat",
+                   "inputs": {"DX": [1, [4, "-5"]]}, "fields": {}, "shadow": False, "topLevel": False},
+        "t_del": {"opcode": "control_delete_this_clone", "next": None, "parent": "t_repeat",
+                  "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
     }
 
+    # ── PLANET ───────────────────────────────────────────────────────────────
+    # Flag → show → goto(-200,0)
+    # On SetPlanet → switch costume to item(Level) of PlanetNames  (Mercury/Venus/…)
     planet = project["targets"][3]
     planet["blocks"] = {
-        "p_top": {
-            "opcode": "event_whenflagclicked",
-            "next": "p_show",
-            "parent": None,
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": True,
-            "x": 20,
-            "y": 20,
-        },
-        "p_show": {
-            "opcode": "looks_show",
-            "next": "p_goto",
-            "parent": "p_top",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "p_goto": {
-            "opcode": "motion_gotoxy",
-            "next": None,
-            "parent": "p_show",
-            "inputs": {"X": [1, [4, "-200"]], "Y": [1, [4, "0"]]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
+        "p_top": {"opcode": "event_whenflagclicked", "next": "p_show", "parent": None,
+                  "inputs": {}, "fields": {}, "shadow": False, "topLevel": True, "x": 20, "y": 20},
+        "p_show": {"opcode": "looks_show", "next": "p_goto", "parent": "p_top",
+                   "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
+        "p_goto": {"opcode": "motion_gotoxy", "next": None, "parent": "p_show",
+                   "inputs": {"X": [1, [4, "-200"]], "Y": [1, [4, "0"]]},
+                   "fields": {}, "shadow": False, "topLevel": False},
+        # SetPlanet → switch costume to planet name from list
+        "p_set_recv": {"opcode": "event_whenbroadcastreceived", "next": "p_set_costume", "parent": None,
+                       "inputs": {}, "fields": {"BROADCAST_OPTION": ["SetPlanet", "bc_set_planet"]},
+                       "shadow": False, "topLevel": True, "x": 20, "y": 220},
+        "p_set_costume": {"opcode": "looks_switchcostumeto", "next": None, "parent": "p_set_recv",
+                          "inputs": {"COSTUME": [3, "p_costume_name", [4, "1"]]},
+                          "fields": {}, "shadow": False, "topLevel": False},
+        # item (Level) of PlanetNames  → e.g. "Mercury" on level 1
+        "p_costume_name": {"opcode": "data_itemoflist", "next": None, "parent": "p_set_costume",
+                           "inputs": {"INDEX": [3, "p_level_var", [4, "1"]]},
+                           "fields": {"LIST": ["PlanetNames", "list_planet_names"]},
+                           "shadow": False, "topLevel": False},
+        "p_level_var": {"opcode": "data_variable", "next": None, "parent": "p_costume_name",
+                        "inputs": {}, "fields": {"VARIABLE": ["Level", "var_level"]},
+                        "shadow": False, "topLevel": False},
     }
 
+    # ── INTRO BOARD ──────────────────────────────────────────────────────────
     intro = project["targets"][4]
     intro["blocks"] = {
-        "i_top": {
-            "opcode": "event_whenflagclicked",
-            "next": "i_hide",
-            "parent": None,
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": True,
-            "x": 20,
-            "y": 20,
-        },
-        "i_hide": {
-            "opcode": "looks_hide",
-            "next": None,
-            "parent": "i_top",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "i_recv": {
-            "opcode": "event_whenbroadcastreceived",
-            "next": "i_show",
-            "parent": None,
-            "inputs": {},
-            "fields": {"BROADCAST_OPTION": ["ShowIntro", "bc_show_intro"]},
-            "shadow": False,
-            "topLevel": True,
-            "x": 20,
-            "y": 180,
-        },
-        "i_show": {
-            "opcode": "looks_show",
-            "next": "i_say1",
-            "parent": "i_recv",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "i_say1": {
-            "opcode": "looks_sayforsecs",
-            "next": "i_say2",
-            "parent": "i_show",
-            "inputs": {"MESSAGE": [1, [10, "Protect this planet!"]], "SECS": [1, [4, "2"]]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "i_say2": {
-            "opcode": "looks_sayforsecs",
-            "next": "i_hide2",
-            "parent": "i_say1",
-            "inputs": {"MESSAGE": [1, [10, "Block space trash from right to left."]], "SECS": [1, [4, "2"]]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "i_hide2": {
-            "opcode": "looks_hide",
-            "next": None,
-            "parent": "i_say2",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "i_all": {
-            "opcode": "event_whenbroadcastreceived",
-            "next": "i_showall",
-            "parent": None,
-            "inputs": {},
-            "fields": {"BROADCAST_OPTION": ["AllClear", "bc_all_clear"]},
-            "shadow": False,
-            "topLevel": True,
-            "x": 20,
-            "y": 380,
-        },
-        "i_showall": {
-            "opcode": "looks_show",
-            "next": "i_end",
-            "parent": "i_all",
-            "inputs": {},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
-        "i_end": {
-            "opcode": "looks_sayforsecs",
-            "next": None,
-            "parent": "i_showall",
-            "inputs": {"MESSAGE": [1, [10, "You protected all 8 planets!"]], "SECS": [1, [4, "4"]]},
-            "fields": {},
-            "shadow": False,
-            "topLevel": False,
-        },
+        "i_top": {"opcode": "event_whenflagclicked", "next": "i_hide", "parent": None,
+                  "inputs": {}, "fields": {}, "shadow": False, "topLevel": True, "x": 20, "y": 20},
+        "i_hide": {"opcode": "looks_hide", "next": None, "parent": "i_top",
+                   "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
+        "i_recv": {"opcode": "event_whenbroadcastreceived", "next": "i_show", "parent": None,
+                   "inputs": {}, "fields": {"BROADCAST_OPTION": ["ShowIntro", "bc_show_intro"]},
+                   "shadow": False, "topLevel": True, "x": 20, "y": 180},
+        "i_show": {"opcode": "looks_show", "next": "i_say1", "parent": "i_recv",
+                   "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
+        "i_say1": {"opcode": "looks_sayforsecs", "next": "i_say2", "parent": "i_show",
+                   "inputs": {"MESSAGE": [1, [10, "Protect this planet!"]], "SECS": [1, [4, "2"]]},
+                   "fields": {}, "shadow": False, "topLevel": False},
+        "i_say2": {"opcode": "looks_sayforsecs", "next": "i_hide2", "parent": "i_say1",
+                   "inputs": {"MESSAGE": [1, [10, "Block space trash from right to left."]], "SECS": [1, [4, "2"]]},
+                   "fields": {}, "shadow": False, "topLevel": False},
+        "i_hide2": {"opcode": "looks_hide", "next": None, "parent": "i_say2",
+                    "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
+        "i_all": {"opcode": "event_whenbroadcastreceived", "next": "i_showall", "parent": None,
+                  "inputs": {}, "fields": {"BROADCAST_OPTION": ["AllClear", "bc_all_clear"]},
+                  "shadow": False, "topLevel": True, "x": 20, "y": 380},
+        "i_showall": {"opcode": "looks_show", "next": "i_end", "parent": "i_all",
+                      "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
+        "i_end": {"opcode": "looks_sayforsecs", "next": None, "parent": "i_showall",
+                  "inputs": {"MESSAGE": [1, [10, "You protected all 8 planets!"]], "SECS": [1, [4, "4"]]},
+                  "fields": {}, "shadow": False, "topLevel": False},
     }
 
     return project
@@ -829,8 +578,10 @@ def package_project_dir(project_dir: Path, out_sb3: Path) -> None:
 def cmd_template(out_sb3: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="scratch_template_") as td:
         tmp = Path(td)
-        write_text(tmp / "project.json", json.dumps(make_template_project(), ensure_ascii=False, separators=(",", ":")))
-        write_assets(tmp)
+        project = make_template_project()
+        asset_map = write_assets(tmp)
+        normalize_project_assets(project, asset_map)
+        write_text(tmp / "project.json", json.dumps(project, ensure_ascii=False, separators=(",", ":")))
         package_project_dir(tmp, out_sb3)
     print("Template generated.")
 
@@ -838,8 +589,10 @@ def cmd_template(out_sb3: Path) -> None:
 def cmd_game(out_sb3: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="scratch_game_") as td:
         tmp = Path(td)
-        write_text(tmp / "project.json", json.dumps(make_playable_project(), ensure_ascii=False, separators=(",", ":")))
-        write_assets(tmp)
+        project = make_playable_project()
+        asset_map = write_assets(tmp)
+        normalize_project_assets(project, asset_map)
+        write_text(tmp / "project.json", json.dumps(project, ensure_ascii=False, separators=(",", ":")))
         package_project_dir(tmp, out_sb3)
     print("Playable game generated.")
 
