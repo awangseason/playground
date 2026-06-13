@@ -34,33 +34,203 @@ def svg_rect(width: int, height: int, fill: str, label: str = "") -> str:
     )
 
 
-def svg_circle(size: int, fill: str, stroke: str = "#ffffff") -> str:
-    c = size // 2
-    r = c - 4
+# ── Planet SVGs (each 100×100, rotationCenter 50,50) ───────────────────────
+def svg_planet_mercury() -> str:
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
-        f'<circle cx="{c}" cy="{c}" r="{r}" fill="{fill}" stroke="{stroke}" stroke-width="4"/>'
-        "</svg>"
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+        '<circle cx="50" cy="50" r="36" fill="#9e9e9e" stroke="#bdbdbd" stroke-width="2"/>'
+        '<circle cx="34" cy="38" r="6" fill="#757575" opacity="0.7"/>'
+        '<circle cx="61" cy="59" r="4" fill="#757575" opacity="0.6"/>'
+        '<circle cx="44" cy="65" r="7" fill="#757575" opacity="0.5"/>'
+        '<circle cx="63" cy="37" r="5" fill="#757575" opacity="0.6"/>'
+        '</svg>'
+    )
+
+def svg_planet_venus() -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+        '<circle cx="50" cy="50" r="40" fill="#f9e04b" opacity="0.25"/>'
+        '<circle cx="50" cy="50" r="36" fill="#f9a825" stroke="#fbc02d" stroke-width="2"/>'
+        '<ellipse cx="44" cy="39" rx="18" ry="8" fill="#fbc02d" opacity="0.45"/>'
+        '<ellipse cx="56" cy="63" rx="12" ry="5" fill="#e65100" opacity="0.3"/>'
+        '</svg>'
+    )
+
+def svg_planet_earth() -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+        '<circle cx="50" cy="50" r="36" fill="#1565c0" stroke="#1976d2" stroke-width="2"/>'
+        '<ellipse cx="40" cy="44" rx="14" ry="10" fill="#2e7d32" opacity="0.9"/>'
+        '<ellipse cx="60" cy="55" rx="10" ry="8" fill="#2e7d32" opacity="0.9"/>'
+        '<ellipse cx="34" cy="62" rx="8" ry="6" fill="#2e7d32" opacity="0.8"/>'
+        '<ellipse cx="50" cy="17" rx="11" ry="4" fill="white" opacity="0.85"/>'
+        '<ellipse cx="50" cy="83" rx="9" ry="3" fill="white" opacity="0.85"/>'
+        '</svg>'
+    )
+
+def svg_planet_mars() -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+        '<circle cx="50" cy="50" r="36" fill="#c62828" stroke="#e53935" stroke-width="2"/>'
+        '<ellipse cx="45" cy="56" rx="15" ry="9" fill="#b71c1c" opacity="0.5"/>'
+        '<ellipse cx="50" cy="17" rx="10" ry="4" fill="white" opacity="0.9"/>'
+        '</svg>'
+    )
+
+def svg_planet_jupiter() -> str:
+    cid = "jc"
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+        f'<defs><clipPath id="{cid}"><circle cx="50" cy="50" r="38"/></clipPath></defs>'
+        '<circle cx="50" cy="50" r="38" fill="#e65100"/>'
+        f'<rect x="12" y="30" width="76" height="8" fill="#bf360c" opacity="0.65" clip-path="url(#{cid})"/>'
+        f'<rect x="12" y="44" width="76" height="6" fill="#ffa726" opacity="0.5" clip-path="url(#{cid})"/>'
+        f'<rect x="12" y="56" width="76" height="8" fill="#bf360c" opacity="0.65" clip-path="url(#{cid})"/>'
+        f'<rect x="12" y="70" width="76" height="5" fill="#ffa726" opacity="0.4" clip-path="url(#{cid})"/>'
+        f'<ellipse cx="60" cy="60" rx="8" ry="5" fill="#c62828" opacity="0.8" clip-path="url(#{cid})"/>'
+        '<circle cx="50" cy="50" r="38" fill="none" stroke="#e64a19" stroke-width="2"/>'
+        '</svg>'
+    )
+
+def svg_planet_saturn() -> str:
+    cid = "sc"
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+        '<ellipse cx="50" cy="52" rx="44" ry="10" fill="none" stroke="#f9a825" stroke-width="6" opacity="0.55"/>'
+        f'<defs><clipPath id="{cid}"><circle cx="50" cy="52" r="26"/></clipPath></defs>'
+        '<circle cx="50" cy="52" r="26" fill="#f9a825" stroke="#fbc02d" stroke-width="2"/>'
+        f'<rect x="24" y="47" width="52" height="5" fill="#e65100" opacity="0.35" clip-path="url(#{cid})"/>'
+        f'<rect x="24" y="57" width="52" height="4" fill="#e65100" opacity="0.25" clip-path="url(#{cid})"/>'
+        '<ellipse cx="50" cy="52" rx="44" ry="10" fill="none" stroke="#fbc02d" stroke-width="3" stroke-dasharray="138,138" stroke-dashoffset="69" opacity="0.75"/>'
+        '</svg>'
+    )
+
+def svg_planet_uranus() -> str:
+    cid = "uc"
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+        f'<defs><clipPath id="{cid}"><circle cx="50" cy="50" r="36"/></clipPath></defs>'
+        '<circle cx="50" cy="50" r="36" fill="#80cbc4" stroke="#4db6ac" stroke-width="2"/>'
+        f'<rect x="14" y="38" width="72" height="6" fill="#4db6ac" opacity="0.4" clip-path="url(#{cid})"/>'
+        f'<rect x="14" y="56" width="72" height="5" fill="#4db6ac" opacity="0.3" clip-path="url(#{cid})"/>'
+        '</svg>'
+    )
+
+def svg_planet_neptune() -> str:
+    cid = "nc"
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
+        f'<defs><clipPath id="{cid}"><circle cx="50" cy="50" r="36"/></clipPath></defs>'
+        '<circle cx="50" cy="50" r="36" fill="#1565c0" stroke="#1976d2" stroke-width="2"/>'
+        f'<ellipse cx="42" cy="55" rx="10" ry="6" fill="#0d47a1" opacity="0.8" clip-path="url(#{cid})"/>'
+        f'<rect x="14" y="35" width="72" height="5" fill="#0d47a1" opacity="0.4" clip-path="url(#{cid})"/>'
+        '</svg>'
+    )
+
+# ── Hero spaceship (50×28, rotationCenter 25,14) ────────────────────────────
+def svg_hero_ship() -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="28" viewBox="0 0 50 28">'
+        '<polygon points="2,14 40,4 40,24" fill="#78909c" stroke="#b0bec5" stroke-width="1.5"/>'
+        '<circle cx="30" cy="14" r="6" fill="#e1f5fe" stroke="#81d4fa" stroke-width="1.5"/>'
+        '<polygon points="40,9 50,12 50,16 40,19" fill="#ff7043" opacity="0.9"/>'
+        '<polygon points="25,4 32,0 40,4" fill="#546e7a"/>'
+        '<polygon points="25,24 32,28 40,24" fill="#546e7a"/>'
+        '</svg>'
+    )
+
+# ── Trash SVGs (40×40) ───────────────────────────────────────────────────────
+def svg_trash_rock() -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
+        '<polygon points="20,5 35,12 38,28 25,38 10,35 5,20 12,8" fill="#78909c" stroke="#546e7a" stroke-width="1.5"/>'
+        '<line x1="15" y1="12" x2="20" y2="22" stroke="#546e7a" stroke-width="1"/>'
+        '<line x1="24" y1="15" x2="28" y2="28" stroke="#546e7a" stroke-width="1"/>'
+        '</svg>'
+    )
+
+def svg_trash_can() -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
+        '<rect x="10" y="12" width="20" height="24" rx="2" fill="#90a4ae" stroke="#607d8b" stroke-width="1.5"/>'
+        '<rect x="7" y="8" width="26" height="6" rx="1" fill="#b0bec5" stroke="#607d8b" stroke-width="1"/>'
+        '<rect x="16" y="3" width="8" height="6" rx="1" fill="#b0bec5" stroke="#607d8b" stroke-width="1"/>'
+        '<line x1="17" y1="18" x2="17" y2="30" stroke="#607d8b" stroke-width="1.5"/>'
+        '<line x1="23" y1="18" x2="23" y2="30" stroke="#607d8b" stroke-width="1.5"/>'
+        '</svg>'
+    )
+
+def svg_trash_debris() -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
+        '<polygon points="8,18 14,6 28,8 36,20 30,34 16,36 6,28" fill="#b0bec5" stroke="#78909c" stroke-width="1.5"/>'
+        '<line x1="14" y1="14" x2="20" y2="20" stroke="#607d8b" stroke-width="1.5"/>'
+        '<line x1="22" y1="12" x2="26" y2="24" stroke="#607d8b" stroke-width="1.5"/>'
+        '<circle cx="20" cy="27" r="3" fill="#78909c"/>'
+        '</svg>'
+    )
+
+# ── Full solar-system victory screen (480×360) ───────────────────────────────
+def svg_full_solar_system() -> str:
+    stars = ""
+    pts = [(42,18),(91,44),(153,11),(210,67),(277,23),(332,55),(388,14),(441,78),
+           (60,100),(118,130),(180,95),(245,140),(300,88),(360,120),(420,105),
+           (30,160),(88,190),(145,172),(205,200),(265,175),(320,195),(378,165),
+           (440,185),(55,230),(112,250),(170,235),(228,260),(285,240),(340,255),(397,232),(450,248),
+           (20,290),(75,310),(133,295),(190,320),(248,300),(303,318),(358,295),(412,312),(465,296),
+           (38,340),(95,352),(148,338),(200,355),(258,342),(315,356),(370,340),(425,350)]
+    for x, y in pts:
+        stars += f'<circle cx="{x}" cy="{y}" r="1.2" fill="white" opacity="0.7"/>'
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360">'
+        f'<rect width="480" height="360" fill="#030b1a"/>'
+        f'{stars}'
+        f'<text x="240" y="28" font-family="sans-serif" font-size="20" fill="#fff176" text-anchor="middle" font-weight="bold">Solar System Guardian</text>'
+        f'<text x="240" y="50" font-family="sans-serif" font-size="13" fill="#b0bec5" text-anchor="middle">All 8 planets protected! \u2605</text>'
+        f'<circle cx="28" cy="210" r="26" fill="#fdd835" opacity="0.3"/>'
+        f'<circle cx="28" cy="210" r="22" fill="#fdd835"/>'
+        f'<text x="28" y="244" font-family="sans-serif" font-size="8" fill="#fff9c4" text-anchor="middle">Sun</text>'
+        f'<circle cx="80" cy="210" r="9" fill="#9e9e9e"/>'
+        f'<text x="80" y="228" font-family="sans-serif" font-size="7" fill="#bdbdbd" text-anchor="middle">Mercury</text>'
+        f'<circle cx="122" cy="210" r="13" fill="#f9a825"/>'
+        f'<text x="122" y="232" font-family="sans-serif" font-size="7" fill="#fff9c4" text-anchor="middle">Venus</text>'
+        f'<circle cx="168" cy="210" r="14" fill="#1565c0"/>'
+        f'<ellipse cx="164" cy="206" rx="6" ry="4" fill="#2e7d32" opacity="0.9"/>'
+        f'<text x="168" y="233" font-family="sans-serif" font-size="7" fill="#90caf9" text-anchor="middle">Earth</text>'
+        f'<circle cx="212" cy="210" r="11" fill="#c62828"/>'
+        f'<text x="212" y="230" font-family="sans-serif" font-size="7" fill="#ef9a9a" text-anchor="middle">Mars</text>'
+        f'<circle cx="265" cy="210" r="22" fill="#e65100"/>'
+        f'<rect x="243" y="205" width="44" height="5" fill="#bf360c" opacity="0.6"/>'
+        f'<text x="265" y="242" font-family="sans-serif" font-size="7" fill="#ffccbc" text-anchor="middle">Jupiter</text>'
+        f'<ellipse cx="328" cy="210" rx="30" ry="7" fill="none" stroke="#fbc02d" stroke-width="5" opacity="0.65"/>'
+        f'<circle cx="328" cy="210" r="17" fill="#f9a825"/>'
+        f'<ellipse cx="328" cy="210" rx="30" ry="7" fill="none" stroke="#fbc02d" stroke-width="3" stroke-dasharray="94,94" stroke-dashoffset="47" opacity="0.8"/>'
+        f'<text x="328" y="236" font-family="sans-serif" font-size="7" fill="#fff9c4" text-anchor="middle">Saturn</text>'
+        f'<circle cx="385" cy="210" r="13" fill="#80cbc4"/>'
+        f'<text x="385" y="232" font-family="sans-serif" font-size="7" fill="#b2dfdb" text-anchor="middle">Uranus</text>'
+        f'<circle cx="438" cy="210" r="12" fill="#1565c0"/>'
+        f'<text x="438" y="231" font-family="sans-serif" font-size="7" fill="#90caf9" text-anchor="middle">Neptune</text>'
+        f'</svg>'
     )
 
 
 def write_assets(out_dir: Path) -> dict:
     assets = {
-        "bg_space.svg": svg_rect(480, 360, "#0b1020", "Solar System Guardian"),
-        "bg_full_solar_system.svg": svg_rect(480, 360, "#101a38", "Full Solar System"),
-        "hero.svg": svg_circle(80, "#21d4fd"),
-        "trash_1.svg": svg_circle(48, "#7f8c8d"),
-        "trash_2.svg": svg_circle(48, "#95a5a6"),
-        "trash_3.svg": svg_circle(48, "#bdc3c7"),
-        "planet_mercury.svg": svg_circle(90, "#9e7c63"),
-        "planet_venus.svg": svg_circle(90, "#d8b27a"),
-        "planet_earth.svg": svg_circle(90, "#3c9ee7"),
-        "planet_mars.svg": svg_circle(90, "#c1442e"),
-        "planet_jupiter.svg": svg_circle(90, "#d9a066"),
-        "planet_saturn.svg": svg_circle(90, "#d7c18f"),
-        "planet_uranus.svg": svg_circle(90, "#86d1d3"),
-        "planet_neptune.svg": svg_circle(90, "#4062d8"),
-        "intro_board.svg": svg_rect(280, 90, "#1f2a44", "Planet Briefing"),
+        "bg_space.svg": svg_rect(480, 360, "#030b1a", "Solar System Guardian"),
+        "bg_full_solar_system.svg": svg_full_solar_system(),
+        "hero.svg": svg_hero_ship(),
+        "trash_1.svg": svg_trash_rock(),
+        "trash_2.svg": svg_trash_can(),
+        "trash_3.svg": svg_trash_debris(),
+        "planet_mercury.svg": svg_planet_mercury(),
+        "planet_venus.svg": svg_planet_venus(),
+        "planet_earth.svg": svg_planet_earth(),
+        "planet_mars.svg": svg_planet_mars(),
+        "planet_jupiter.svg": svg_planet_jupiter(),
+        "planet_saturn.svg": svg_planet_saturn(),
+        "planet_uranus.svg": svg_planet_uranus(),
+        "planet_neptune.svg": svg_planet_neptune(),
+        "intro_board.svg": svg_rect(280, 90, "#1f2a44", ""),
     }
     asset_map = {}
     for name, content in assets.items():
@@ -88,6 +258,7 @@ def make_template_project() -> dict:
         "Level": "var_level",
         "Blocked": "var_blocked",
         "Target": "var_target",
+        "Remaining": "var_remaining",
         "PlanetHP": "var_hp",
         "Score": "var_score",
         "GameOn": "var_game_on",
@@ -114,6 +285,7 @@ def make_template_project() -> dict:
             var_ids["Level"]: ["Level", 1],
             var_ids["Blocked"]: ["Blocked", 0],
             var_ids["Target"]: ["Target", 6],
+            var_ids["Remaining"]: ["Remaining", 6],
             var_ids["PlanetHP"]: ["PlanetHP", 3],
             var_ids["Score"]: ["Score", 0],
             var_ids["GameOn"]: ["GameOn", 0],
@@ -186,8 +358,8 @@ def make_template_project() -> dict:
                 "name": "Hero",
                 "md5ext": "hero.svg",
                 "dataFormat": "svg",
-                "rotationCenterX": 40,
-                "rotationCenterY": 40,
+                "rotationCenterX": 25,
+                "rotationCenterY": 14,
             }
         ],
         "sounds": [],
@@ -259,14 +431,14 @@ def make_template_project() -> dict:
         "comments": {},
         "currentCostume": 0,
         "costumes": [
-            {"assetId": "planet_mercury", "name": "Mercury", "md5ext": "planet_mercury.svg", "dataFormat": "svg", "rotationCenterX": 45, "rotationCenterY": 45},
-            {"assetId": "planet_venus", "name": "Venus", "md5ext": "planet_venus.svg", "dataFormat": "svg", "rotationCenterX": 45, "rotationCenterY": 45},
-            {"assetId": "planet_earth", "name": "Earth", "md5ext": "planet_earth.svg", "dataFormat": "svg", "rotationCenterX": 45, "rotationCenterY": 45},
-            {"assetId": "planet_mars", "name": "Mars", "md5ext": "planet_mars.svg", "dataFormat": "svg", "rotationCenterX": 45, "rotationCenterY": 45},
-            {"assetId": "planet_jupiter", "name": "Jupiter", "md5ext": "planet_jupiter.svg", "dataFormat": "svg", "rotationCenterX": 45, "rotationCenterY": 45},
-            {"assetId": "planet_saturn", "name": "Saturn", "md5ext": "planet_saturn.svg", "dataFormat": "svg", "rotationCenterX": 45, "rotationCenterY": 45},
-            {"assetId": "planet_uranus", "name": "Uranus", "md5ext": "planet_uranus.svg", "dataFormat": "svg", "rotationCenterX": 45, "rotationCenterY": 45},
-            {"assetId": "planet_neptune", "name": "Neptune", "md5ext": "planet_neptune.svg", "dataFormat": "svg", "rotationCenterX": 45, "rotationCenterY": 45},
+            {"assetId": "planet_mercury", "name": "Mercury", "md5ext": "planet_mercury.svg", "dataFormat": "svg", "rotationCenterX": 50, "rotationCenterY": 50},
+            {"assetId": "planet_venus", "name": "Venus", "md5ext": "planet_venus.svg", "dataFormat": "svg", "rotationCenterX": 50, "rotationCenterY": 50},
+            {"assetId": "planet_earth", "name": "Earth", "md5ext": "planet_earth.svg", "dataFormat": "svg", "rotationCenterX": 50, "rotationCenterY": 50},
+            {"assetId": "planet_mars", "name": "Mars", "md5ext": "planet_mars.svg", "dataFormat": "svg", "rotationCenterX": 50, "rotationCenterY": 50},
+            {"assetId": "planet_jupiter", "name": "Jupiter", "md5ext": "planet_jupiter.svg", "dataFormat": "svg", "rotationCenterX": 50, "rotationCenterY": 50},
+            {"assetId": "planet_saturn", "name": "Saturn", "md5ext": "planet_saturn.svg", "dataFormat": "svg", "rotationCenterX": 50, "rotationCenterY": 50},
+            {"assetId": "planet_uranus", "name": "Uranus", "md5ext": "planet_uranus.svg", "dataFormat": "svg", "rotationCenterX": 50, "rotationCenterY": 50},
+            {"assetId": "planet_neptune", "name": "Neptune", "md5ext": "planet_neptune.svg", "dataFormat": "svg", "rotationCenterX": 50, "rotationCenterY": 50},
         ],
         "sounds": [],
         "volume": 100,
@@ -323,7 +495,11 @@ def make_playable_project() -> dict:
     project = make_template_project()
 
     # ── STAGE ────────────────────────────────────────────────────────────────
-    # Flag → set bg/score/level=1 → repeat until Level > 8 → level body → next level
+    # Flag → bg → score=0 → level=1 → repeat_until(Level>8):
+    #   reset blocked/hp → set Target from list → set Remaining=Target
+    #   → broadcast SetPlanet → broadcastandwait ShowIntro (waits for intro to finish)
+    #   → GameOn=1 → wait 10s → GameOn=0 → Level++
+    # → switch to FullSolarSystem → broadcast AllClear
     stage = project["targets"][0]
     sb = {}
 
@@ -354,10 +530,27 @@ def make_playable_project() -> dict:
     sb["s_reset_hp"] = {"opcode": "data_setvariableto", "next": "s_target", "parent": "s_reset_blocked",
                         "inputs": {"VALUE": [1, [4, "3"]]}, "fields": {"VARIABLE": ["PlanetHP", "var_hp"]},
                         "shadow": False, "topLevel": False}
-    sb["s_target"] = {"opcode": "data_setvariableto", "next": "s_spawn", "parent": "s_reset_hp",
-                      "inputs": {"VALUE": [1, [4, "6"]]}, "fields": {"VARIABLE": ["Target", "var_target"]},
+    # Target = item(Level) of Targets list → [6,9,12,15,18,21,24,28]
+    sb["s_target"] = {"opcode": "data_setvariableto", "next": "s_remaining", "parent": "s_reset_hp",
+                      "inputs": {"VALUE": [3, "s_target_item", [4, "6"]]},
+                      "fields": {"VARIABLE": ["Target", "var_target"]},
                       "shadow": False, "topLevel": False}
-    sb["s_spawn"] = {"opcode": "data_setvariableto", "next": "s_speed", "parent": "s_target",
+    sb["s_target_item"] = {"opcode": "data_itemoflist", "next": None, "parent": "s_target",
+                           "inputs": {"INDEX": [3, "s_lft", [4, "1"]]},
+                           "fields": {"LIST": ["Targets", "list_targets"]},
+                           "shadow": False, "topLevel": False}
+    sb["s_lft"] = {"opcode": "data_variable", "next": None, "parent": "s_target_item",
+                   "inputs": {}, "fields": {"VARIABLE": ["Level", "var_level"]},
+                   "shadow": False, "topLevel": False}
+    # set Remaining = Target
+    sb["s_remaining"] = {"opcode": "data_setvariableto", "next": "s_spawn", "parent": "s_target",
+                         "inputs": {"VALUE": [3, "s_tref", [4, "0"]]},
+                         "fields": {"VARIABLE": ["Remaining", "var_remaining"]},
+                         "shadow": False, "topLevel": False}
+    sb["s_tref"] = {"opcode": "data_variable", "next": None, "parent": "s_remaining",
+                    "inputs": {}, "fields": {"VARIABLE": ["Target", "var_target"]},
+                    "shadow": False, "topLevel": False}
+    sb["s_spawn"] = {"opcode": "data_setvariableto", "next": "s_speed", "parent": "s_remaining",
                      "inputs": {"VALUE": [1, [4, "0.6"]]}, "fields": {"VARIABLE": ["SpawnGap", "var_spawn_gap"]},
                      "shadow": False, "topLevel": False}
     sb["s_speed"] = {"opcode": "data_setvariableto", "next": "s_setplanet", "parent": "s_spawn",
@@ -369,7 +562,8 @@ def make_playable_project() -> dict:
     sb["s_setplanet_menu"] = {"opcode": "event_broadcast_menu", "next": None, "parent": "s_setplanet",
                                "inputs": {}, "fields": {"BROADCAST_OPTION": ["SetPlanet", "bc_set_planet"]},
                                "shadow": True, "topLevel": False}
-    sb["s_intro"] = {"opcode": "event_broadcast", "next": "s_game_on", "parent": "s_setplanet",
+    # broadcastandwait — stage waits until intro say-blocks finish before GameOn=1
+    sb["s_intro"] = {"opcode": "event_broadcastandwait", "next": "s_game_on", "parent": "s_setplanet",
                      "inputs": {"BROADCAST_INPUT": [1, "s_intro_menu"]},
                      "fields": {}, "shadow": False, "topLevel": False}
     sb["s_intro_menu"] = {"opcode": "event_broadcast_menu", "next": None, "parent": "s_intro",
@@ -493,8 +687,29 @@ def make_playable_project() -> dict:
         "t_repeat": {"opcode": "control_repeat", "next": "t_del", "parent": "t_goto",
                      "inputs": {"TIMES": [1, [4, "70"]], "SUBSTACK": [2, "t_move"]},
                      "fields": {}, "shadow": False, "topLevel": False},
-        "t_move": {"opcode": "motion_changexby", "next": None, "parent": "t_repeat",
+        "t_move": {"opcode": "motion_changexby", "next": "t_check_hero", "parent": "t_repeat",
                    "inputs": {"DX": [1, [4, "-5"]]}, "fields": {}, "shadow": False, "topLevel": False},
+        # Each step: check if touching Hero → score++, Blocked++, Remaining--, delete clone
+        "t_check_hero": {"opcode": "control_if", "next": None, "parent": "t_move",
+                         "inputs": {"CONDITION": [2, "t_touching_hero"], "SUBSTACK": [2, "t_add_score"]},
+                         "fields": {}, "shadow": False, "topLevel": False},
+        "t_touching_hero": {"opcode": "sensing_touchingobject", "next": None, "parent": "t_check_hero",
+                            "inputs": {"TOUCHINGOBJECTMENU": [1, "t_touching_menu"]},
+                            "fields": {}, "shadow": False, "topLevel": False},
+        "t_touching_menu": {"opcode": "sensing_touchingobjectmenu", "next": None, "parent": "t_touching_hero",
+                            "inputs": {}, "fields": {"TOUCHINGOBJECTMENU": ["Hero", None]},
+                            "shadow": True, "topLevel": False},
+        "t_add_score": {"opcode": "data_changevariableby", "next": "t_add_blocked", "parent": "t_check_hero",
+                        "inputs": {"VALUE": [1, [4, "1"]]}, "fields": {"VARIABLE": ["Score", "var_score"]},
+                        "shadow": False, "topLevel": False},
+        "t_add_blocked": {"opcode": "data_changevariableby", "next": "t_dec_remaining", "parent": "t_add_score",
+                          "inputs": {"VALUE": [1, [4, "1"]]}, "fields": {"VARIABLE": ["Blocked", "var_blocked"]},
+                          "shadow": False, "topLevel": False},
+        "t_dec_remaining": {"opcode": "data_changevariableby", "next": "t_delete_on_hit", "parent": "t_add_blocked",
+                            "inputs": {"VALUE": [1, [4, "-1"]]}, "fields": {"VARIABLE": ["Remaining", "var_remaining"]},
+                            "shadow": False, "topLevel": False},
+        "t_delete_on_hit": {"opcode": "control_delete_this_clone", "next": None, "parent": "t_dec_remaining",
+                            "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
         "t_del": {"opcode": "control_delete_this_clone", "next": None, "parent": "t_repeat",
                   "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
     }
@@ -538,19 +753,48 @@ def make_playable_project() -> dict:
         "i_recv": {"opcode": "event_whenbroadcastreceived", "next": "i_show", "parent": None,
                    "inputs": {}, "fields": {"BROADCAST_OPTION": ["ShowIntro", "bc_show_intro"]},
                    "shadow": False, "topLevel": True, "x": 20, "y": 180},
-        "i_show": {"opcode": "looks_show", "next": "i_say1", "parent": "i_recv",
+        "i_show": {"opcode": "looks_show", "next": "i_say_name", "parent": "i_recv",
                    "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
-        "i_say1": {"opcode": "looks_sayforsecs", "next": "i_say2", "parent": "i_show",
-                   "inputs": {"MESSAGE": [1, [10, "Protect this planet!"]], "SECS": [1, [4, "2"]]},
-                   "fields": {}, "shadow": False, "topLevel": False},
-        "i_say2": {"opcode": "looks_sayforsecs", "next": "i_hide2", "parent": "i_say1",
-                   "inputs": {"MESSAGE": [1, [10, "Block space trash from right to left."]], "SECS": [1, [4, "2"]]},
-                   "fields": {}, "shadow": False, "topLevel": False},
-        "i_hide2": {"opcode": "looks_hide", "next": None, "parent": "i_say2",
+        # say: planet name — item(Level) of PlanetNames
+        "i_say_name": {"opcode": "looks_sayforsecs", "next": "i_say_desc", "parent": "i_show",
+                       "inputs": {"MESSAGE": [3, "i_name_item", [10, ""]], "SECS": [1, [4, "1.5"]]},
+                       "fields": {}, "shadow": False, "topLevel": False},
+        "i_name_item": {"opcode": "data_itemoflist", "next": None, "parent": "i_say_name",
+                        "inputs": {"INDEX": [3, "i_level1", [4, "1"]]},
+                        "fields": {"LIST": ["PlanetNames", "list_planet_names"]},
+                        "shadow": False, "topLevel": False},
+        "i_level1": {"opcode": "data_variable", "next": None, "parent": "i_name_item",
+                     "inputs": {}, "fields": {"VARIABLE": ["Level", "var_level"]},
+                     "shadow": False, "topLevel": False},
+        # say: planet description — item(Level) of Intros
+        "i_say_desc": {"opcode": "looks_sayforsecs", "next": "i_say_mission", "parent": "i_say_name",
+                       "inputs": {"MESSAGE": [3, "i_intro_item", [10, ""]], "SECS": [1, [4, "3"]]},
+                       "fields": {}, "shadow": False, "topLevel": False},
+        "i_intro_item": {"opcode": "data_itemoflist", "next": None, "parent": "i_say_desc",
+                         "inputs": {"INDEX": [3, "i_level2", [4, "1"]]},
+                         "fields": {"LIST": ["Intros", "list_intros"]},
+                         "shadow": False, "topLevel": False},
+        "i_level2": {"opcode": "data_variable", "next": None, "parent": "i_intro_item",
+                     "inputs": {}, "fields": {"VARIABLE": ["Level", "var_level"]},
+                     "shadow": False, "topLevel": False},
+        # say: "Block X trash!"  join("Block ", join(Remaining, " trash!"))
+        "i_say_mission": {"opcode": "looks_sayforsecs", "next": "i_hide2", "parent": "i_say_desc",
+                          "inputs": {"MESSAGE": [3, "i_join_outer", [10, ""]], "SECS": [1, [4, "1.5"]]},
+                          "fields": {}, "shadow": False, "topLevel": False},
+        "i_join_outer": {"opcode": "operator_join", "next": None, "parent": "i_say_mission",
+                         "inputs": {"STRING1": [1, [10, "Block "]], "STRING2": [3, "i_join_inner", [10, ""]]},
+                         "fields": {}, "shadow": False, "topLevel": False},
+        "i_join_inner": {"opcode": "operator_join", "next": None, "parent": "i_join_outer",
+                         "inputs": {"STRING1": [3, "i_remaining_ref", [10, ""]], "STRING2": [1, [10, " trash!"]]},
+                         "fields": {}, "shadow": False, "topLevel": False},
+        "i_remaining_ref": {"opcode": "data_variable", "next": None, "parent": "i_join_inner",
+                            "inputs": {}, "fields": {"VARIABLE": ["Remaining", "var_remaining"]},
+                            "shadow": False, "topLevel": False},
+        "i_hide2": {"opcode": "looks_hide", "next": None, "parent": "i_say_mission",
                     "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
         "i_all": {"opcode": "event_whenbroadcastreceived", "next": "i_showall", "parent": None,
                   "inputs": {}, "fields": {"BROADCAST_OPTION": ["AllClear", "bc_all_clear"]},
-                  "shadow": False, "topLevel": True, "x": 20, "y": 380},
+                  "shadow": False, "topLevel": True, "x": 20, "y": 580},
         "i_showall": {"opcode": "looks_show", "next": "i_end", "parent": "i_all",
                       "inputs": {}, "fields": {}, "shadow": False, "topLevel": False},
         "i_end": {"opcode": "looks_sayforsecs", "next": None, "parent": "i_showall",
