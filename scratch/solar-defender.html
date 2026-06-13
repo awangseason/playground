@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solar System Defender</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; display:flex; justify-content:center; align-items:center; height:100vh; overflow:hidden; }
+    canvas { display:block; image-rendering:crisp-edges; }
+  </style>
+</head>
+<body>
+<canvas id="c" width="820" height="580"></canvas>
+<script>
+'use strict';
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = 820, H = 580;
+
+/* ───────── Responsive scaling ───────── */
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width  = W * s + 'px';
+  canvas.style.height = H * s + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ───────── Planet data ───────── */
+const PLANETS = [
+  {
+    name:'Mercury', color:'#b0b0b0', darkColor:'#606060',
+    size:24, hasRings:false, hasStripes:false,
+    intro:{
+      subtitle:'The Swift Messenger',
+      description:'Mercury is the smallest and closest planet to the Sun. With virtually no atmosphere, its cratered surface is scorched by day and frozen at night.',
+      facts:[
+        'Closest planet to the Sun',
+        'Temperature: −180 °C to +430 °C',
+        'Orbits the Sun in just 88 Earth days',
+        'No moons, no rings, no atmosphere',
+        'Explored by MESSENGER & BepiColombo'
+      ]
+    },
+    targetBlocked:8,  maxHealth:3, debrisSpeed:1.8, spawnInterval:108
+  },
+  {
+    name:'Venus', color:'#e8c96a', darkColor:'#b08820',
+    size:33, hasRings:false, hasStripes:false,
+    intro:{
+      subtitle:'The Scorching Twin',
+      description:"Venus is Earth's nearest neighbor but also its opposite: a runaway greenhouse effect makes it the hottest planet in the Solar System, hotter even than Mercury.",
+      facts:[
+        'Hottest planet — surface temp 465 °C',
+        'Thick CO₂ atmosphere with sulfuric acid clouds',
+        'Rotates backwards (retrograde)',
+        'A Venus day is longer than its year',
+        'Brightest object in the night sky after the Moon'
+      ]
+    },
+    targetBlocked:12, maxHealth:3, debrisSpeed:2.2, spawnInterval:92
+  },
+  {
+    name:'Earth', color:'#4a9eff', darkColor:'#1a5060',
+    size:35, hasRings:false, hasStripes:false, isEarth:true,
+    intro:{
+      subtitle:'Our Home Planet',
+      description:'Earth is the third planet from the Sun and the only known world to harbor life. Its liquid water, protective atmosphere, and Moon make it uniquely suited for life.',
+      facts:[
+        '71 % of surface covered by liquid water',
+        'Only known planet with life',
+        "One large Moon stabilizes Earth's axial tilt",
+        'Protected by a powerful magnetic field',
+        'The densest planet in the Solar System'
+      ]
+    },
+    targetBlocked:16, maxHealth:4, debrisSpeed:2.5, spawnInterval:80
+  },
+  {
+    name:'Mars', color:'#cc5530', darkColor:'#882010',
+    size:27, hasRings:false, hasStripes:false,
+    intro:{
+      subtitle:'The Red Planet',
+      description:'Mars is the fourth planet and a cold, rusty world. It hosts the tallest volcano and the longest canyon anywhere in the Solar System.',
+      facts:[
+        'Olympus Mons: tallest volcano in the Solar System',
+        'Valles Marineris: 10× deeper than Grand Canyon',
+        'Thin atmosphere mostly of CO₂',
+        'Two tiny moons: Phobos and Deimos',
+        'Home to rovers Curiosity and Perseverance'
+      ]
+    },
+    targetBlocked:20, maxHealth:3, debrisSpeed:2.8, spawnInterval:68
+  },
+  {
+    name:'Jupiter', color:'#d49050', darkColor:'#9c5820',
+    size:60, hasRings:false, hasStripes:true,
+    intro:{
+      subtitle:'The Giant King',
+      description:'Jupiter is the largest planet in the Solar System — more than 1 300 Earths could fit inside it. Its Great Red Spot is a storm raging for over 350 years.',
+      facts:[
+        'Largest planet: 1 300 Earths fit inside',
+        'Great Red Spot: a storm bigger than Earth',
+        '95 known moons including volcanic Io & icy Europa',
+        'Composed mostly of hydrogen and helium',
+        'Acts as a gravitational shield for inner planets'
+      ]
+    },
+    targetBlocked:25, maxHealth:5, debrisSpeed:3.0, spawnInterval:60
+  },
+  {
+    name:'Saturn', color:'#dfc870', darkColor:'#b09030',
+    size:52, hasRings:true, ringColor:'#c8a840', hasStripes:true, isSaturn:true,
+    intro:{
+      subtitle:'The Ringed Wonder',
+      description:"Saturn is the sixth planet and the jewel of the Solar System. Its ring system spans 282 000 km yet is only about 10 m thick. Saturn is so light it would float on water!",
+      facts:[
+        'Ring system spans 282 000 km in diameter',
+        'Less dense than water — it would float!',
+        '146 known moons; Titan has a thick atmosphere',
+        'Titan has lakes of liquid methane',
+        'Second-largest planet in the Solar System'
+      ]
+    },
+    targetBlocked:30, maxHealth:4, debrisSpeed:3.3, spawnInterval:53
+  },
+  {
+    name:'Uranus', color:'#7ae8e8', darkColor:'#40b0b0',
+    size:44, hasRings:true, ringColor:'#50c0c0', hasStripes:false, isUranus:true,
+    intro:{
+      subtitle:'The Sideways Ice Giant',
+      description:'Uranus is the seventh planet and an ice giant. Its axial tilt of 98° means it rolls around the Sun on its side, giving each pole 42 years of sunlight then 42 years of darkness.',
+      facts:[
+        'Axial tilt of 97.77° — rotates on its side',
+        'Ice giant: water, methane, and ammonia ices',
+        'Coldest planetary atmosphere: −224 °C',
+        '13 known rings and 27 moons',
+        'One Uranian year = 84 Earth years'
+      ]
+    },
+    targetBlocked:36, maxHealth:4, debrisSpeed:3.6, spawnInterval:48
+  },
+  {
+    name:'Neptune', color:'#3565e0', darkColor:'#1535a8',
+    size:42, hasRings:false, hasStripes:false,
+    intro:{
+      subtitle:'The Windy World',
+      description:'Neptune is the eighth and most distant planet. This dark, frigid ice giant has the fiercest storms in the Solar System, with supersonic winds reaching 2 100 km/h.',
+      facts:[
+        'Farthest planet from the Sun',
+        'Fastest winds in Solar System: 2 100 km/h',
+        'Average temperature: −214 °C',
+        '14 known moons; largest is Triton',
+        'Takes 165 Earth years to orbit the Sun'
+      ]
+    },
+    targetBlocked:42, maxHealth:4, debrisSpeed:4.0, spawnInterval:42
+  }
+];
+
+/* ───────── Game state ───────── */
+let gameState    = 'title'; // title | intro | playing | levelComplete | gameOver | solarSystem
+let currentLevel = 0;
+let totalScore   = 0;
+let levelScore   = 0;
+let frameCount   = 0;
+
+/* ───────── Positions ───────── */
+const PLANET_X = 105;
+const HERO_X   = 235;
+const HERO_W   = 52;
+const HERO_H   = 30;
+let heroY   = H / 2;
+let heroVY  = 0;
+const HERO_SPEED = 5.5;
+
+/* ───────── Level objects ───────── */
+let debrisList  = [];
+let particles   = [];
+let blocked     = 0;
+let planetHealth = 0;
+let spawnTimer  = 0;
+let startDelay  = 0;
+let shieldFlash = 0;
+let planetShake = 0;
+
+/* ───────── Input ───────── */
+const keys = {};
+document.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','Space',' '].includes(e.key)) e.preventDefault();
+  keys[e.code] = true;
+  onKey(e.code);
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+canvas.addEventListener('click', onMouseClick);
+let clickBtns = {};
+
+/* ───────── Stars ───────── */
+const STARS = Array.from({length:260}, () => ({
+  x: Math.random()*W, y: Math.random()*H,
+  r: Math.random()*1.3+0.3,
+  phase: Math.random()*Math.PI*2,
+  speed: Math.random()*0.025+0.01
+}));
+
+/* ───────── Asteroid vertex templates ───────── */
+const AVERTS = [
+  [ 0,-1, 0.65,-0.75, 1,0, 0.7,0.8, 0,1, -0.75,0.6, -1,0, -0.65,-0.8 ],
+  [ 0.3,-1, 0.9,-0.4, 1,0.3, 0.5,1, -0.2,0.9, -0.9,0.4, -1,-0.2, -0.3,-0.9 ],
+  [ 0,-0.85, 0.55,-0.7, 1,0.1, 0.65,0.9, -0.1,1, -0.8,0.45, -1,-0.15, -0.5,-0.8 ]
+];
+
+/* ───────── Audio ───────── */
+let _ac = null;
+function ac() {
+  if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+  return _ac;
+}
+function tone(freq, type, dur, vol=0.15) {
+  try {
+    const a = ac(), o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, a.currentTime);
+    g.gain.setValueAtTime(vol, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(); o.stop(a.currentTime + dur);
+  } catch(_) {}
+}
+function sndBlock() { tone(660,'square',0.10,0.12); }
+function sndHit()   { tone(120,'sawtooth',0.28,0.18); }
+function sndWin() {
+  [0, 0.18, 0.36].forEach((t,i) => {
+    try {
+      const a=ac(), o=a.createOscillator(), g=a.createGain();
+      o.type='sine'; o.frequency.value=[440,554,660][i];
+      g.gain.setValueAtTime(0.1, a.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.001, a.currentTime+t+0.28);
+      o.connect(g); g.connect(a.destination);
+      o.start(a.currentTime+t); o.stop(a.currentTime+t+0.28);
+    } catch(_) {}
+  });
+}
+
+/* ───────── Utilities ───────── */
+function lighten(hex, f) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgb(${Math.min(255,r+~~((255-r)*f))},${Math.min(255,g+~~((255-g)*f))},${Math.min(255,b+~~((255-b)*f))})`;
+}
+function wrapText(txt, maxW) {
+  const words = txt.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const t = line ? line+' '+w : w;
+    if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; }
+    else line = t;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);    ctx.arcTo(x+w,y,   x+w,y+r,   r);
+  ctx.lineTo(x+w, y+h-r);  ctx.arcTo(x+w,y+h, x+w-r,y+h, r);
+  ctx.lineTo(x+r, y+h);    ctx.arcTo(x,y+h,   x,y+h-r,   r);
+  ctx.lineTo(x, y+r);      ctx.arcTo(x,y,     x+r,y,     r);
+  ctx.closePath();
+}
+
+/* ───────── Debris factory ───────── */
+function makeDebris() {
+  const p = PLANETS[currentLevel];
+  const cols = ['#8a8878','#706858','#9a8a78','#7a7068','#a09080'];
+  return {
+    x: W+20, y: 60+Math.random()*(H-120),
+    r: Math.random()*14+9,
+    vx: -(p.debrisSpeed + Math.random()*0.6-0.3),
+    vy: (Math.random()-0.5)*0.5,
+    verts: AVERTS[~~(Math.random()*AVERTS.length)],
+    rot: Math.random()*Math.PI*2,
+    rotV: (Math.random()-0.5)*0.06,
+    color: cols[~~(Math.random()*cols.length)]
+  };
+}
+
+/* ───────── Particles ───────── */
+function burst(x, y, color, n) {
+  for (let i=0; i<n; i++) {
+    const a = Math.random()*Math.PI*2, s = Math.random()*4+1;
+    particles.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+      r:Math.random()*3+1, life:1, decay:Math.random()*0.04+0.025, color });
+  }
+}
+
+/* ═══════════════════════════════════════
+   DRAW FUNCTIONS
+═══════════════════════════════════════ */
+
+function drawBackground() {
+  const bg = ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#000510'); bg.addColorStop(1,'#010820');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H);
+  for (const s of STARS) {
+    s.phase += s.speed;
+    ctx.globalAlpha = 0.45 + 0.45*Math.sin(s.phase);
+    ctx.fillStyle = '#ffffdd';
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ─── Saturn rings (back = upper half) ─── */
+function drawSaturnBack(r, color) {
+  ctx.save(); ctx.scale(1, 0.27);
+  ctx.beginPath(); ctx.rect(-r*2,-r*2,r*4,r*2); ctx.clip();
+  const rings=[[r*1.12,r*1.32,0.35,'#d8ca68'],[r*1.34,r*1.63,0.55,color],[r*1.65,r*1.83,0.28,'#d8ca68']];
+  rings.forEach(([ri,ro,al,cl])=>{
+    ctx.globalAlpha=al*0.55;
+    ctx.beginPath(); ctx.arc(0,0,ro,0,Math.PI*2); ctx.arc(0,0,ri,0,Math.PI*2,true);
+    ctx.fillStyle=cl; ctx.fill();
+  });
+  ctx.globalAlpha=1; ctx.restore();
+}
+/* ─── Saturn rings (front = lower half) ─── */
+function drawSaturnFront(r, color) {
+  ctx.save(); ctx.scale(1, 0.27);
+  ctx.beginPath(); ctx.rect(-r*2,0,r*4,r*2); ctx.clip();
+  const rings=[[r*1.12,r*1.32,0.45,'#d8ca68'],[r*1.34,r*1.63,0.72,color],[r*1.65,r*1.83,0.35,'#d8ca68']];
+  rings.forEach(([ri,ro,al,cl])=>{
+    ctx.globalAlpha=al;
+    ctx.beginPath(); ctx.arc(0,0,ro,0,Math.PI*2); ctx.arc(0,0,ri,0,Math.PI*2,true);
+    ctx.fillStyle=cl; ctx.fill();
+  });
+  ctx.globalAlpha=1; ctx.restore();
+}
+/* ─── Uranus rings (vertical) ─── */
+function drawUranusRings(r) {
+  ctx.save(); ctx.scale(0.22,1);
+  ctx.globalAlpha=0.52;
+  ctx.beginPath(); ctx.arc(0,0,r*1.65,0,Math.PI*2); ctx.arc(0,0,r*1.44,0,Math.PI*2,true);
+  ctx.fillStyle='#60cccc'; ctx.fill();
+  ctx.globalAlpha=1; ctx.restore();
+}
+
+function drawPlanet(p, x, y, radiusOverride) {
+  const r = radiusOverride ?? p.size;
+  ctx.save(); ctx.translate(x,y);
+
+  // Rings behind planet
+  if (p.isSaturn) drawSaturnBack(r, p.ringColor);
+  if (p.isUranus) drawUranusRings(r);
+
+  // Atmosphere glow
+  const ag = ctx.createRadialGradient(0,0,r*0.9, 0,0,r*1.45);
+  ag.addColorStop(0, p.color+'28'); ag.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=ag; ctx.beginPath(); ctx.arc(0,0,r*1.45,0,Math.PI*2); ctx.fill();
+
+  // Planet body
+  if (p.hasStripes) {
+    ctx.save(); ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.clip();
+    const cols = p.isSaturn
+      ? ['#e8d484','#d4b860','#f0e090','#c8a040','#e0cc74']
+      : ['#d4a060','#e8c490','#c07840','#f0d898','#d4a060','#b07030','#e8c490'];
+    const sh = r*2/cols.length;
+    cols.forEach((c,i)=>{ ctx.fillStyle=c; ctx.fillRect(-r,-r+i*sh,r*2,sh+1); });
+    // Sphere shading
+    const sl = ctx.createRadialGradient(-r*.3,-r*.3,0, 0,0,r);
+    sl.addColorStop(0,'rgba(255,255,255,0.22)'); sl.addColorStop(.7,'rgba(0,0,0,0)'); sl.addColorStop(1,'rgba(0,0,0,0.28)');
+    ctx.fillStyle=sl; ctx.fillRect(-r,-r,r*2,r*2);
+    // Jupiter Great Red Spot
+    if (!p.isSaturn) { ctx.fillStyle='rgba(178,68,28,0.65)'; ctx.beginPath(); ctx.ellipse(r*.15,r*.12,r*.22,r*.13,0,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+  } else {
+    const g = ctx.createRadialGradient(-r*.3,-r*.35,r*.04, 0,0,r);
+    if (p.isEarth) {
+      g.addColorStop(0,'#70c0ff'); g.addColorStop(.5,'#3a8fbf'); g.addColorStop(1,'#104858');
+    } else {
+      g.addColorStop(0, lighten(p.color,.35)); g.addColorStop(.6,p.color); g.addColorStop(1,p.darkColor);
+    }
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    if (p.isEarth) {
+      ctx.save(); ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.clip();
+      ctx.fillStyle='#2a6e38';
+      ctx.beginPath(); ctx.ellipse(-r*.1,-r*.2,r*.28,r*.38,.3,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(r*.33,r*.1,r*.22,r*.32,-.2,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-r*.28,r*.3,r*.18,r*.12,.5,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    // Specular shine
+    const sh = ctx.createRadialGradient(-r*.3,-r*.35,0, -r*.3,-r*.35,r*.65);
+    sh.addColorStop(0,'rgba(255,255,255,0.28)'); sh.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fillStyle=sh; ctx.fill();
+  }
+
+  // Rings in front
+  if (p.isSaturn) drawSaturnFront(r, p.ringColor);
+  ctx.restore();
+}
+
+function drawHero(x, y) {
+  ctx.save(); ctx.translate(x,y);
+  if (shieldFlash>0) { ctx.shadowBlur=22*shieldFlash; ctx.shadowColor='#40eeff'; }
+  // Body
+  ctx.fillStyle='#b8cfe0';
+  ctx.beginPath();
+  ctx.moveTo(-HERO_W/2,0); ctx.lineTo(-HERO_W/2+10,-HERO_H/2);
+  ctx.lineTo(HERO_W/2-8,-HERO_H/2+4); ctx.lineTo(HERO_W/2,0);
+  ctx.lineTo(HERO_W/2-8,HERO_H/2-4); ctx.lineTo(-HERO_W/2+10,HERO_H/2);
+  ctx.closePath(); ctx.fill();
+  // Cockpit
+  const cg = ctx.createRadialGradient(6,0,2,6,0,11);
+  cg.addColorStop(0,'#90dfff'); cg.addColorStop(1,'#0070b8');
+  ctx.fillStyle=cg; ctx.beginPath(); ctx.ellipse(6,0,11,7,0,0,Math.PI*2); ctx.fill();
+  // Engine flame
+  ctx.fillStyle=`rgba(255,${80+Math.sin(frameCount*.35)*90|0},10,.9)`;
+  ctx.beginPath(); ctx.ellipse(-HERO_W/2+2,0,7,4,0,0,Math.PI*2); ctx.fill();
+  // Shield edge
+  if (shieldFlash>0) {
+    ctx.strokeStyle=`rgba(64,220,255,${shieldFlash})`;
+    ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(HERO_W/2+5,-HERO_H/2-8); ctx.lineTo(HERO_W/2+5,HERO_H/2+8); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawDebris(d) {
+  ctx.save(); ctx.translate(d.x,d.y); ctx.rotate(d.rot);
+  ctx.beginPath();
+  for (let i=0;i<d.verts.length;i+=2) {
+    const px=d.verts[i]*d.r, py=d.verts[i+1]*d.r;
+    i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+  const g=ctx.createRadialGradient(-d.r*.3,-d.r*.3,0,0,0,d.r);
+  g.addColorStop(0,lighten(d.color,.3)); g.addColorStop(1,d.color);
+  ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle='#3a3830'; ctx.lineWidth=1; ctx.stroke();
+  ctx.restore();
+}
+
+function drawHUD() {
+  const p = PLANETS[currentLevel];
+  // Level label
+  ctx.fillStyle='rgba(0,0,0,.6)'; roundRect(8,8,218,26,5); ctx.fill();
+  ctx.font='bold 13px Courier New'; ctx.fillStyle='#ffffff';
+  ctx.fillText(`Level ${currentLevel+1}/8 — ${p.name}`,14,25);
+  // Planet shield (HP)
+  ctx.fillStyle='rgba(0,0,0,.6)'; roundRect(8,40,188,24,5); ctx.fill();
+  ctx.font='11px Courier New'; ctx.fillStyle='#aaa'; ctx.fillText('SHIELD:',14,55);
+  for (let i=0;i<p.maxHealth;i++) {
+    ctx.fillStyle = i<planetHealth ? '#ee3333' : '#2a2a2a';
+    ctx.fillRect(76+i*21,45,17,12);
+  }
+  // Progress bar
+  const prog = Math.min(blocked/p.targetBlocked,1);
+  ctx.fillStyle='rgba(0,0,0,.6)'; roundRect(8,70,232,22,5); ctx.fill();
+  if (prog>0) { ctx.fillStyle='#00bb44'; ctx.fillRect(10,72,~~(prog*228),18); }
+  ctx.strokeStyle='#005522'; ctx.lineWidth=1; roundRect(10,72,228,18,2); ctx.stroke();
+  ctx.font='10px Courier New'; ctx.fillStyle='#fff'; ctx.fillText(`BLOCKED: ${blocked}/${p.targetBlocked}`,14,84);
+  // Score
+  ctx.fillStyle='rgba(0,0,0,.6)'; roundRect(W-142,8,134,26,5); ctx.fill();
+  ctx.font='bold 13px Courier New'; ctx.fillStyle='#ffdd44';
+  ctx.textAlign='right'; ctx.fillText(`SCORE: ${totalScore+levelScore}`,W-12,25); ctx.textAlign='left';
+  // Controls hint
+  ctx.font='10px Courier New'; ctx.fillStyle='rgba(255,255,255,.32)';
+  ctx.fillText('↑↓  W/S  to move',W-168,H-8);
+  // Countdown
+  if (startDelay>0) {
+    const label = startDelay>90?'3': startDelay>45?'2': startDelay>10?'1':'GO!';
+    ctx.textAlign='center'; ctx.font='bold 72px Courier New';
+    ctx.fillStyle=`rgba(255,255,255,${Math.min(1,startDelay/30)})`;
+    ctx.fillText(label,W/2,H/2+22); ctx.textAlign='left';
+  }
+}
+
+/* ═══════════════════════════════════════
+   SCREEN RENDERERS
+═══════════════════════════════════════ */
+function drawTitle() {
+  drawBackground();
+  ctx.save(); ctx.shadowBlur=30; ctx.shadowColor='#3366ff';
+  ctx.textAlign='center';
+  ctx.font='bold 54px Courier New'; ctx.fillStyle='#ffffff'; ctx.fillText('SOLAR SYSTEM',W/2,H/2-92);
+  ctx.font='bold 54px Courier New'; ctx.fillStyle='#88bbff'; ctx.fillText('DEFENDER',W/2,H/2-32);
+  ctx.restore();
+  ctx.textAlign='center'; ctx.font='16px Courier New'; ctx.fillStyle='#88bbee';
+  ctx.fillText('Defend all 8 planets from space debris across 8 levels!',W/2,H/2+22);
+  // Sample planets
+  [2,4,5].forEach((pi,i)=>{
+    const p=PLANETS[pi], px=W/2-130+i*130, py=H/2+105;
+    drawPlanet(p,px,py,p.size*0.48);
+    ctx.textAlign='center'; ctx.font='11px Courier New'; ctx.fillStyle='#aabbcc';
+    ctx.fillText(p.name,px,py+p.size*0.48+14);
+  });
+  if ((frameCount>>5)&1) {
+    ctx.textAlign='center'; ctx.font='bold 18px Courier New'; ctx.fillStyle='#ffdd44';
+    ctx.fillText('Press  SPACE / ENTER  to Start',W/2,H-38);
+  }
+  clickBtns.start={x:W/2-200,y:H-58,w:400,h:38};
+  ctx.textAlign='left';
+}
+
+function drawIntro() {
+  const p=PLANETS[currentLevel]; drawBackground();
+  const pr=Math.min(112, p.size*(p.isSaturn||p.isUranus?2.1:2.9));
+  drawPlanet(p, W*0.74, H/2+10, pr);
+
+  // Info panel
+  const pw=W*0.535, ph=H-40;
+  ctx.fillStyle='rgba(0,6,22,.92)'; roundRect(16,18,pw,ph,8); ctx.fill();
+  ctx.strokeStyle='#2c5080'; ctx.lineWidth=2; roundRect(16,18,pw,ph,8); ctx.stroke();
+  // Badge
+  ctx.fillStyle='#1a3a5c'; roundRect(16,18,128,30,8); ctx.fill();
+  ctx.font='bold 12px Courier New'; ctx.fillStyle='#88ccff';
+  ctx.fillText(`  LEVEL ${currentLevel+1} OF 8`,16,37);
+  // Name
+  ctx.font='bold 34px Courier New'; ctx.fillStyle=p.color; ctx.fillText(p.name.toUpperCase(),28,88);
+  ctx.font='italic 14px Courier New'; ctx.fillStyle='#8ab0d8'; ctx.fillText(p.intro.subtitle,28,110);
+  // Divider
+  ctx.strokeStyle='#2c5080'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(28,120); ctx.lineTo(pw-8,120); ctx.stroke();
+  // Description
+  ctx.font='12.5px Courier New'; ctx.fillStyle='#c8dce8';
+  const desc=wrapText(p.intro.description, pw-44);
+  desc.forEach((ln,i)=>ctx.fillText(ln,28,140+i*17));
+  // Facts
+  const fy=140+desc.length*17+14;
+  ctx.font='bold 11px Courier New'; ctx.fillStyle='#6a98c0'; ctx.fillText('PLANET FACTS',28,fy);
+  ctx.font='12px Courier New'; ctx.fillStyle='#c8dce8';
+  p.intro.facts.forEach((f,i)=>ctx.fillText('• '+f,28,fy+20+i*19));
+  // Mission box
+  const my=fy+20+p.intro.facts.length*19+8;
+  ctx.fillStyle='rgba(255,170,0,.12)'; roundRect(24,my-4,pw-16,40,5); ctx.fill();
+  ctx.strokeStyle='#cc9900'; ctx.lineWidth=1; roundRect(24,my-4,pw-16,40,5); ctx.stroke();
+  ctx.font='bold 12px Courier New'; ctx.fillStyle='#ffdd44';
+  ctx.fillText(`MISSION: Block ${p.targetBlocked} pieces of space debris`,30,my+12);
+  const diff=['Easy','Easy','Normal','Normal','Hard','Hard','Expert','Expert'][currentLevel];
+  ctx.font='11px Courier New'; ctx.fillStyle='#ffaa44';
+  ctx.fillText(`Difficulty: ${diff}   Planet HP: ${p.maxHealth}   ${currentLevel===7?'FINAL LEVEL!':''}`,30,my+28);
+  // Prompt
+  if ((frameCount>>4)&1) {
+    ctx.textAlign='center'; ctx.font='bold 14px Courier New'; ctx.fillStyle='#44ff88';
+    ctx.fillText('SPACE / ENTER  to Start Level',W*0.27,H-22); ctx.textAlign='left';
+  }
+  clickBtns.startLevel={x:W*0.27-165,y:H-42,w:330,h:36};
+}
+
+function drawLevelComplete() {
+  ctx.fillStyle='rgba(0,14,38,.88)'; ctx.fillRect(0,0,W,H);
+  const bx=W/2-222,by=H/2-168,bw=444,bh=336;
+  ctx.fillStyle='rgba(0,22,58,.96)'; roundRect(bx,by,bw,bh,10); ctx.fill();
+  ctx.strokeStyle='#3aaa66'; ctx.lineWidth=3; roundRect(bx,by,bw,bh,10); ctx.stroke();
+  ctx.textAlign='center';
+  ctx.font='bold 26px Courier New'; ctx.fillStyle='#44ff88'; ctx.fillText('✓  PLANET DEFENDED!',W/2,by+48);
+  ctx.font='bold 18px Courier New'; ctx.fillStyle=PLANETS[currentLevel].color;
+  ctx.fillText(PLANETS[currentLevel].name+' is safe!',W/2,by+80);
+  const stars=planetHealth===PLANETS[currentLevel].maxHealth?3:planetHealth>=2?2:1;
+  ctx.font='30px serif'; ctx.fillText('★'.repeat(stars)+'☆'.repeat(3-stars),W/2,by+116);
+  ctx.font='13px Courier New'; ctx.fillStyle='#aaccee';
+  ctx.fillText(`Debris blocked: ${blocked}    Score gained: +${levelScore}`,W/2,by+150);
+  ctx.fillText(`Running total: ${totalScore+levelScore}`,W/2,by+170);
+  ctx.font='11px Courier New'; ctx.fillStyle='#778899'; ctx.fillText('Planets defended:',W/2,by+202);
+  PLANETS.forEach((pl,i)=>{
+    const px=W/2-140+i*40, py=by+228;
+    ctx.beginPath(); ctx.arc(px,py,13,0,Math.PI*2);
+    ctx.fillStyle=i<=currentLevel?pl.color:'#222233'; ctx.globalAlpha=i<=currentLevel?1:.45; ctx.fill(); ctx.globalAlpha=1;
+  });
+  if (currentLevel<7) {
+    ctx.font='13px Courier New'; ctx.fillStyle='#aabbcc';
+    ctx.fillText(`Next up: ${PLANETS[currentLevel+1].name}`,W/2,by+268);
+  } else {
+    ctx.font='bold 14px Courier New'; ctx.fillStyle='#ffdd44';
+    ctx.fillText('ALL PLANETS DEFENDED!',W/2,by+268);
+  }
+  if ((frameCount>>4)&1) {
+    ctx.font='bold 14px Courier New'; ctx.fillStyle='#ffdd44';
+    ctx.fillText('SPACE / ENTER  to Continue',W/2,by+302);
+  }
+  ctx.textAlign='left';
+}
+
+function drawGameOver() {
+  ctx.fillStyle='rgba(28,0,0,.88)'; ctx.fillRect(0,0,W,H);
+  const bx=W/2-196,by=H/2-122,bw=392,bh=244;
+  ctx.fillStyle='rgba(48,0,5,.96)'; roundRect(bx,by,bw,bh,10); ctx.fill();
+  ctx.strokeStyle='#cc2222'; ctx.lineWidth=3; roundRect(bx,by,bw,bh,10); ctx.stroke();
+  ctx.textAlign='center';
+  ctx.font='bold 26px Courier New'; ctx.fillStyle='#ff4444'; ctx.fillText('✗  PLANET LOST!',W/2,by+48);
+  ctx.font='bold 16px Courier New'; ctx.fillStyle='#ffaaaa';
+  ctx.fillText(PLANETS[currentLevel].name+' was hit by debris!',W/2,by+78);
+  ctx.font='13px Courier New'; ctx.fillStyle='#cc9999';
+  ctx.fillText(`Debris blocked: ${blocked} / ${PLANETS[currentLevel].targetBlocked}`,W/2,by+112);
+  ctx.fillText('Score from this attempt is not saved',W/2,by+134);
+  if ((frameCount>>4)&1) {
+    ctx.font='bold 14px Courier New'; ctx.fillStyle='#ffdd44';
+    ctx.fillText('SPACE / ENTER  to Retry Level',W/2,by+178);
+  }
+  ctx.textAlign='left';
+}
+
+function drawSolarSystem() {
+  drawBackground();
+  ctx.textAlign='center';
+  ctx.save(); ctx.shadowBlur=24; ctx.shadowColor='#ffcc00';
+  ctx.font='bold 25px Courier New'; ctx.fillStyle='#ffee44';
+  ctx.fillText('🎉  SOLAR SYSTEM FULLY DEFENDED!  🎉',W/2,40);
+  ctx.restore();
+  ctx.font='14px Courier New'; ctx.fillStyle='#88ccff';
+  ctx.fillText(`Final Score: ${totalScore}    All 8 Planets Protected!`,W/2,68);
+
+  const cx=W/2, cy=H/2+30;
+  // Sun
+  const sunG=ctx.createRadialGradient(cx,cy,4,cx,cy,38);
+  sunG.addColorStop(0,'#ffffff'); sunG.addColorStop(.25,'#ffee88'); sunG.addColorStop(.6,'#ffaa00'); sunG.addColorStop(1,'#ff5500');
+  ctx.beginPath(); ctx.arc(cx,cy,38,0,Math.PI*2); ctx.fillStyle=sunG; ctx.fill();
+  const coronaG=ctx.createRadialGradient(cx,cy,38,cx,cy,62);
+  coronaG.addColorStop(0,'rgba(255,170,0,.45)'); coronaG.addColorStop(1,'rgba(255,80,0,0)');
+  ctx.beginPath(); ctx.arc(cx,cy,62,0,Math.PI*2); ctx.fillStyle=coronaG; ctx.fill();
+  ctx.font='10px Courier New'; ctx.fillStyle='#ffdd44'; ctx.fillText('Sun',cx,cy+54);
+
+  const ORB=[52,75,100,124,160,193,220,244];
+  PLANETS.forEach((p,i)=>{
+    const or=ORB[i];
+    // Orbit
+    ctx.beginPath(); ctx.arc(cx,cy,or,0,Math.PI*2);
+    ctx.strokeStyle='rgba(80,110,160,.22)'; ctx.lineWidth=1; ctx.stroke();
+    // Planet position (animated)
+    const angle=i*0.74+Math.PI*.06+frameCount*0.0008/(i*0.5+1);
+    const px=cx+Math.cos(angle)*or, py=cy+Math.sin(angle)*or;
+    const pr=Math.max(p.size*0.22,6);
+    drawPlanet(p,px,py,pr);
+    ctx.font='9px Courier New'; ctx.fillStyle='#b8ccdd'; ctx.fillText(p.name,px,py+pr+12);
+    ctx.font='10px sans-serif'; ctx.fillStyle='#44ee88'; ctx.fillText('✓',px+pr,py-pr+2);
+  });
+
+  if ((frameCount>>5)&1) {
+    ctx.font='bold 14px Courier New'; ctx.fillStyle='#ffdd44';
+    ctx.fillText('SPACE / ENTER  to Play Again',W/2,H-18);
+  }
+  ctx.textAlign='left';
+}
+
+/* ═══════════════════════════════════════
+   STATE TRANSITIONS
+═══════════════════════════════════════ */
+function onKey(code) {
+  const ok=['Space','Enter','KeyZ','KeyX','NumpadEnter'].includes(code);
+  if (!ok) return;
+  if (gameState==='title')         { currentLevel=0; totalScore=0; gameState='intro'; }
+  else if (gameState==='intro')    { startLevel(); }
+  else if (gameState==='levelComplete') {
+    totalScore+=levelScore;
+    if (++currentLevel>=PLANETS.length) gameState='solarSystem';
+    else gameState='intro';
+  }
+  else if (gameState==='gameOver') { gameState='intro'; }
+  else if (gameState==='solarSystem') { currentLevel=0; totalScore=0; gameState='title'; }
+}
+
+function onMouseClick(e) {
+  const r=canvas.getBoundingClientRect();
+  const scale=W/r.width;
+  const cx=(e.clientX-r.left)*scale, cy=(e.clientY-r.top)*scale;
+  for (const [name,btn] of Object.entries(clickBtns)) {
+    if (cx>=btn.x && cx<=btn.x+btn.w && cy>=btn.y && cy<=btn.y+btn.h) {
+      if (name==='start'||name==='startLevel') onKey('Space');
+    }
+  }
+}
+
+function startLevel() {
+  heroY=H/2; heroVY=0;
+  debrisList=[]; particles=[];
+  blocked=0; levelScore=0;
+  planetHealth=PLANETS[currentLevel].maxHealth;
+  spawnTimer=0; startDelay=135;
+  shieldFlash=0; planetShake=0;
+  gameState='playing';
+}
+
+/* ═══════════════════════════════════════
+   UPDATE
+═══════════════════════════════════════ */
+function update() {
+  frameCount++;
+  if (gameState!=='playing') return;
+
+  // Hero movement
+  if (keys['ArrowUp']||keys['KeyW'])     heroVY=-HERO_SPEED;
+  else if (keys['ArrowDown']||keys['KeyS']) heroVY=HERO_SPEED;
+  else heroVY*=0.72;
+  heroY=Math.max(HERO_H/2, Math.min(H-HERO_H/2, heroY+heroVY));
+
+  if (shieldFlash>0) shieldFlash-=0.05;
+  if (planetShake>0) planetShake-=0.6;
+
+  // Countdown before debris appears
+  if (startDelay>0) { startDelay--; return; }
+
+  // Spawn debris
+  const p=PLANETS[currentLevel];
+  if (++spawnTimer>=p.spawnInterval) { debrisList.push(makeDebris()); spawnTimer=0; }
+
+  // Update debris
+  debrisList=debrisList.filter(d=>{
+    d.x+=d.vx; d.y+=d.vy; d.rot+=d.rotV;
+    // Hero collision (AABB + circle)
+    const hl=HERO_X-HERO_W/2, hr=HERO_X+HERO_W/2, ht=heroY-HERO_H/2, hb=heroY+HERO_H/2;
+    const nx=Math.max(hl,Math.min(hr,d.x)), ny=Math.max(ht,Math.min(hb,d.y));
+    if (Math.hypot(d.x-nx,d.y-ny)<d.r) {
+      blocked++; levelScore+=10; shieldFlash=1;
+      burst(d.x,d.y,'#70d8ff',14); sndBlock();
+      if (blocked>=p.targetBlocked) { gameState='levelComplete'; sndWin(); }
+      return false;
+    }
+    // Planet collision
+    if (Math.hypot(d.x-PLANET_X,d.y-H/2)<p.size+d.r*0.6) {
+      planetHealth--; planetShake=12;
+      burst(d.x,d.y,'#ff7030',20); sndHit();
+      if (planetHealth<=0) gameState='gameOver';
+      return false;
+    }
+    return d.x>-d.r*2;
+  });
+
+  // Particles
+  particles=particles.filter(pt=>{
+    pt.x+=pt.vx; pt.y+=pt.vy; pt.vx*=0.94; pt.vy*=0.94; pt.life-=pt.decay; return pt.life>0;
+  });
+}
+
+/* ═══════════════════════════════════════
+   RENDER
+═══════════════════════════════════════ */
+function render() {
+  ctx.clearRect(0,0,W,H);
+  clickBtns={};
+
+  if (gameState==='title')       { drawTitle(); return; }
+  if (gameState==='intro')       { drawIntro(); return; }
+  if (gameState==='solarSystem') { drawSolarSystem(); return; }
+
+  // Game world (playing / levelComplete / gameOver)
+  drawBackground();
+
+  const p=PLANETS[currentLevel];
+  const shakeOff = planetShake>0 ? (Math.random()-.5)*4 : 0;
+  const py=H/2+shakeOff;
+
+  // Danger zone hint line
+  ctx.setLineDash([6,8]); ctx.strokeStyle='rgba(255,80,80,.08)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PLANET_X+p.size+28,0); ctx.lineTo(PLANET_X+p.size+28,H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  drawPlanet(p, PLANET_X, py);
+
+  // Planet hit flash
+  if (planetShake>0) {
+    ctx.save(); ctx.globalAlpha=Math.min(.38,planetShake/12);
+    ctx.fillStyle='#ff4420';
+    ctx.beginPath(); ctx.arc(PLANET_X,py,p.size+12,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  drawHero(HERO_X, heroY);
+  debrisList.forEach(drawDebris);
+
+  particles.forEach(pt=>{
+    ctx.save(); ctx.globalAlpha=pt.life;
+    ctx.fillStyle=pt.color;
+    ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+
+  drawHUD();
+  if (gameState==='levelComplete') drawLevelComplete();
+  if (gameState==='gameOver')      drawGameOver();
+}
+
+/* ═══════════════════════════════════════
+   GAME LOOP
+═══════════════════════════════════════ */
+function loop() { update(); render(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>
